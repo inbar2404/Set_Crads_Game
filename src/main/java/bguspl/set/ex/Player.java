@@ -76,7 +76,7 @@ public class Player implements Runnable {
         if (!human) createArtificialIntelligence();
 
         while (!terminate) {
-            // TODO implement main player loop
+            // TODO implement main player loop: Inbar
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -105,7 +105,7 @@ public class Player implements Runnable {
      * Called when the game should be terminated.
      */
     public void terminate() {
-        // TODO implement
+        // TODO implement: Inbar
     }
 
     /**
@@ -114,7 +114,7 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
-        // TODO implement
+        // TODO implement: Inbar
     }
 
     /**
@@ -124,7 +124,7 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
-        // TODO implement
+        // TODO implement: Inbar
 
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         env.ui.setScore(id, ++score);
@@ -134,7 +134,7 @@ public class Player implements Runnable {
      * Penalize a player and perform other related actions.
      */
     public void penalty() {
-        // TODO implement
+        // TODO implement: Inbar
     }
 
     public int score() {
