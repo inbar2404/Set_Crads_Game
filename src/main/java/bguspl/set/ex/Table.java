@@ -1,8 +1,10 @@
 package bguspl.set.ex;
 
+import bguspl.set.Config;
 import bguspl.set.Env;
 
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -30,6 +32,12 @@ public class Table {
     protected final Integer[] cardToSlot; // slot per card (if any)
 
     /**
+     * Mapping between a player and the tokens slots he has.
+     */
+    protected LinkedList<LinkedList<Integer>> playersTokensMap;
+
+
+    /**
      * Constructor for testing.
      *
      * @param env        - the game environment objects.
@@ -41,6 +49,12 @@ public class Table {
         this.env = env;
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
+
+        //initialize list of lists players-to-tokens
+        playersTokensMap = new LinkedList<>();
+        for (int i = 0; i < env.config.players; i++) {
+            playersTokensMap.add(new LinkedList<>());
+        }
     }
 
     /**
@@ -84,17 +98,20 @@ public class Table {
      * @param card - the card id to place in the slot.
      * @param slot - the slot in which the card should be placed.
      *
-     * @post - the card placed is on the table, in the assigned slot.
+     * @post - the card placed is on the table, in the assigned slot. (it overrides the card in the slot if exists)
      */
     public void placeCard(int card, int slot) {
         try {
+            //sleep the table delay time
             Thread.sleep(env.config.tableDelayMillis);
-        } catch (InterruptedException ignored) {}
+        }
+        catch (InterruptedException ignored) {}
 
         cardToSlot[card] = slot;
         slotToCard[slot] = card;
 
-        // TODO implement
+        //call the ui to actually place the card on graphics - the ui class throws exception if out of bounds
+        env.ui.placeCard(card, slot);
     }
 
     /**
@@ -103,10 +120,21 @@ public class Table {
      */
     public void removeCard(int slot) {
         try {
+            //sleep the table delay time
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
 
-        // TODO implement
+        if(slotToCard[slot] != null) {
+            //if there is a card on the slot - update the relevant cell in arrays to null
+            int card = slotToCard[slot];
+            cardToSlot[card] = null;
+            slotToCard[slot] = null;
+            //remove the slot from all players-tokens lists
+            removeFromAllLists(slot);
+            //call the ui to actually remove the card and tokens from graphics - the ui class throws exception if out of bounds
+            env.ui.removeCard(slot);
+            env.ui.removeTokens(slot);
+        }
     }
 
     /**
@@ -115,7 +143,12 @@ public class Table {
      * @param slot   - the slot on which to place the token.
      */
     public void placeToken(int player, int slot) {
-        // TODO implement
+        //add the slot to the player-to-tokens mapping, if it didn't exist already , and there is a card to place on it
+        if(!(playersTokensMap.get(player).contains(slot)) && (slotToCard[slot] != null))
+        {
+            playersTokensMap.get(player).add(slot);
+            env.ui.placeToken(player, slot);
+        }
     }
 
     /**
@@ -125,7 +158,31 @@ public class Table {
      * @return       - true iff a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
-        // TODO implement
-        return false;
+        //remove the slot from the player-to-tokens mapping, if it  exists , and there is a card which it's placed on
+        if ((getTokens(player).contains(slot)) && (slotToCard[slot] != null)) {
+            getTokens(player).remove((Integer) slot);
+            env.ui.removeToken(player, slot);
+            return true;
+        }
+        else {
+            return false;
+        }
     }
+
+    public LinkedList<Integer> getTokens(int player)
+    {
+        //return given player tokens slots list
+        return playersTokensMap.get(player);
+    }
+
+    /**
+     *    Method to remove a given slot from all lists
+     */
+    public void removeFromAllLists(int slot) {
+        for (LinkedList<Integer> list : playersTokensMap) {
+            // Remove the number if it exists in the list
+            list.removeIf(number -> number.equals(slot));
+        }
+    }
+
 }
