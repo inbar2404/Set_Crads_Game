@@ -2,6 +2,8 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.concurrent.Semaphore;
+
 /**
  * This class manages the players' threads and data
  *
@@ -51,6 +53,12 @@ public class Player implements Runnable {
     private int score;
 
     /**
+     * We use semaphore in order to implement the wait & notify mechanism
+     */
+    // TODO: Maybe we should create FaireSemaphore and use it instead or maybe even reader-writer?
+    private Semaphore semaphore;
+
+    /**
      * The class constructor.
      *
      * @param env    - the environment object.
@@ -64,6 +72,8 @@ public class Player implements Runnable {
         this.table = table;
         this.id = id;
         this.human = human;
+        this.terminate = false; // We want to init it to False
+        this.semaphore = new Semaphore(1);
     }
 
     /**
@@ -76,8 +86,7 @@ public class Player implements Runnable {
         if (!human) createArtificialIntelligence();
 
         while (!terminate) {
-            // TODO implement main player loop: Inbar
-            // My code!!!!!! - TODO: DELETE
+
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -106,7 +115,7 @@ public class Player implements Runnable {
      * Called when the game should be terminated.
      */
     public void terminate() {
-        // TODO implement: Inbar
+        this.terminate = true;
     }
 
     /**
@@ -125,8 +134,7 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
-        // TODO implement: Inbar
-
+        freezePlayer(this.env.config.pointFreezeMillis);
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         env.ui.setScore(id, ++score);
     }
@@ -135,7 +143,11 @@ public class Player implements Runnable {
      * Penalize a player and perform other related actions.
      */
     public void penalty() {
-        // TODO implement: Inbar
+        freezePlayer(this.env.config.penaltyFreezeMillis);
+    }
+
+    private void freezePlayer(long time){
+        // TODO: Implement (don't forget to add comments and so on)
     }
 
     public int score() {
