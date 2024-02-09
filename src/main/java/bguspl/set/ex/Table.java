@@ -136,6 +136,7 @@ public class Table {
         }
     }
 
+
     /**
      * Places a player token on a grid slot.
      * @param player - the player the token belongs to.
