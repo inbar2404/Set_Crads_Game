@@ -1,8 +1,9 @@
 package bguspl.set.ex;
 
 import bguspl.set.Env;
-
+import java.util.Random;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * This class manages the players' threads and data
@@ -55,8 +56,13 @@ public class Player implements Runnable {
     /**
      * We use semaphore in order to implement the wait & notify mechanism
      */
-    // TODO: Maybe we should create FaireSemaphore and use it instead or maybe even reader-writer?
+    // TODO: Consult with Bar - maybe we should create FaireSemaphore (or even reader-writer) and use it instead?
     private Semaphore semaphore;
+
+    /**
+     * User should have a queue of his actions to execute with his tokens.
+     */
+    private LinkedBlockingQueue<Integer> actions;
 
     /**
      * The class constructor.
@@ -74,6 +80,7 @@ public class Player implements Runnable {
         this.human = human;
         this.terminate = false; // We want to init it to False
         this.semaphore = new Semaphore(1);
+        this.actions = new LinkedBlockingQueue<Integer>(env.config.featureSize); // Number of actions should be equals to size of a set
     }
 
     /**
@@ -86,7 +93,33 @@ public class Player implements Runnable {
         if (!human) createArtificialIntelligence();
 
         while (!terminate) {
-
+            // We will try to execute the user's actions
+            if (this.actions.size() > 0)
+            {
+                int action = this.actions.poll();
+                // Execute the action - rather is it placing or removing
+                // TODO: cosult with Bar if using synchronized in this if-else scope is the best solution?
+                if(table.canPlaceToken(id, action)) {
+                    synchronized (table) {
+                        table.placeToken(id, action);
+                    }
+                }
+                else {
+                    synchronized (table) {
+                        table.removeToken(id, action);
+                    }
+                }
+                // In case of 3 tokens that are placed on deck - we will check if we have a set
+                boolean hasSet = table.getNumberOfTokensOfPlayer(id)==3;
+                if (hasSet) {
+                    try {
+                        semaphore.acquire();
+                        // TODO: Check ifIsValidSet - according: give point or penalty (think: who should do that - here or have an object of the dealer?)
+                    }
+                    catch (InterruptedException ignored) {}
+                    semaphore.release();
+                }
+            }
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -101,9 +134,13 @@ public class Player implements Runnable {
         aiThread = new Thread(() -> {
             env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
             while (!terminate) {
-                // TODO implement player key press simulator
+                // TODO: Check if it works well when cards are init (that it's not starting to act before)
+                // Getting a random slot to place a token
+                Random random = new Random();
+                int randomSlot = random.nextInt(env.config.tableSize);
+                keyPressed(randomSlot);
                 try {
-                    synchronized (this) { wait(); }
+                    Thread.sleep(1); // TODO: Think, is that the best implementation? consider do something else
                 } catch (InterruptedException ignored) {}
             }
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -124,7 +161,9 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
-        // TODO implement: Inbar
+        if (this.actions.size() < this.env.config.featureSize) {
+            this.actions.add(slot);
+        }
     }
 
     /**
@@ -135,7 +174,6 @@ public class Player implements Runnable {
      */
     public void point() {
         freezePlayer(this.env.config.pointFreezeMillis);
-        int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         env.ui.setScore(id, ++score);
     }
 

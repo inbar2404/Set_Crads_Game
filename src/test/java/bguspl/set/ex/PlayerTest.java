@@ -53,11 +53,7 @@ class PlayerTest {
     }
 
     @Test
-    void point() {
-
-        // force table.countCards to return 3
-        when(table.countCards()).thenReturn(3); // this part is just for demonstration
-
+    void pointRaisePlayerScore() {
         // calculate the expected score for later
         int expectedScore = player.score() + 1;
 
@@ -70,4 +66,13 @@ class PlayerTest {
         // check that ui.setScore was called with the player's id and the correct score
         verify(ui).setScore(eq(player.id), eq(expectedScore));
     }
+
+    @Test
+    void paneltyDontChangePlayerScore() {
+        int expectedScore = player.score();
+        player.penalty();
+        assertEquals(expectedScore, player.score());
+    }
+
+    // TODO: Add more required uts
 }
