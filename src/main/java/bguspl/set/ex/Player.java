@@ -65,6 +65,11 @@ public class Player implements Runnable {
     private LinkedBlockingQueue<Integer> actions;
 
     /**
+     * The dealer in the game.
+     */
+    private final Dealer dealer; // TODO: It is look very wrong that a player should knows his dealer.
+
+    /**
      * The class constructor.
      *
      * @param env    - the environment object.
@@ -81,6 +86,7 @@ public class Player implements Runnable {
         this.terminate = false; // We want to init it to False
         this.semaphore = new Semaphore(1);
         this.actions = new LinkedBlockingQueue<Integer>(env.config.featureSize); // Number of actions should be equals to size of a set
+        this.dealer = dealer;
     }
 
     /**
@@ -98,7 +104,7 @@ public class Player implements Runnable {
             {
                 int action = this.actions.poll();
                 // Execute the action - rather is it placing or removing
-                // TODO: cosult with Bar if using synchronized in this if-else scope is the best solution?
+                // TODO: Consult with Bar if using synchronized in this if-else scope is the best solution?
                 if(table.canPlaceToken(id, action)) {
                     synchronized (table) {
                         table.placeToken(id, action);
@@ -109,12 +115,19 @@ public class Player implements Runnable {
                         table.removeToken(id, action);
                     }
                 }
+                // TODO: Consult with Bar - is this code should be here or in the dealer class?
                 // In case of 3 tokens that are placed on deck - we will check if we have a set
                 boolean hasSet = table.getNumberOfTokensOfPlayer(id)==3;
                 if (hasSet) {
                     try {
                         semaphore.acquire();
-                        // TODO: Check ifIsValidSet - according: give point or penalty (think: who should do that - here or have an object of the dealer?)
+                        // TODO: It feels very wrong to have here an object of dealer
+                        if(dealer.isSetValid(this.id)){
+                            point();
+                        }
+                        else {
+                            penalty();
+                        }
                     }
                     catch (InterruptedException ignored) {}
                     semaphore.release();
@@ -140,7 +153,7 @@ public class Player implements Runnable {
                 int randomSlot = random.nextInt(env.config.tableSize);
                 keyPressed(randomSlot);
                 try {
-                    Thread.sleep(1); // TODO: Think, is that the best implementation? consider do something else
+                    Thread.sleep(1); // TODO: Consult with Bar: is this the best implementation? what other options are there?
                 } catch (InterruptedException ignored) {}
             }
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -153,6 +166,7 @@ public class Player implements Runnable {
      */
     public void terminate() {
         this.terminate = true;
+        // TODO: Consult with Bar: I think I should add - Thread.currentThread().interrupt();  what do you think?
     }
 
     /**
@@ -184,8 +198,19 @@ public class Player implements Runnable {
         freezePlayer(this.env.config.penaltyFreezeMillis);
     }
 
+    /**
+     * Freezing a player for a given time.
+     * @param time - the time to freeze this player
+     */
     private void freezePlayer(long time){
-        // TODO: Implement (don't forget to add comments and so on)
+        env.ui.setFreeze(this.id,time);
+        while (time > 0) {
+            try {
+                Thread.sleep(env.config.BEAT_TIME);
+            } catch (InterruptedException ignored) {}
+            time -= env.config.BEAT_TIME;
+            env.ui.setFreeze(this.id, time);
+        }
     }
 
     public int score() {
