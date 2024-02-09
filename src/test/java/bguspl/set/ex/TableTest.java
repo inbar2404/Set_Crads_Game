@@ -152,4 +152,16 @@ class TableTest {
             super("", null);
         }
     }
+
+
+
+    public static void main(String[] args) {
+        TableTest t = new TableTest();
+        t.setUp();
+
+
+
+
+    }
 }
+
