@@ -68,33 +68,6 @@ public class Main {
         // start the dealer thread
         ThreadLogger dealerThread = new ThreadLogger(dealer, "dealer", logger);
         dealerThread.startWithLog();
-        table.placeCard(19,0);
-        table.placeCard(22,1);
-        table.placeCard(23,2);
-        table.placeCard(24,3);
-        table.placeCard(26,4);
-        table.placeCard(28,5);
-        table.placeCard(30,6);
-        table.placeCard(70,7);
-        table.placeCard(3,8);
-
-        table.placeToken(1,0);
-        table.placeToken(1,1);
-        table.placeToken(1,1);
-
-        table.removeCard(0);
-        table.removeCard(1);
-        table.placeToken(1,1);
-        //table.placeCard(75,0);
-        //table.placeToken(1,0);
-        //table.removeToken(1,0);
-        //table.removeToken(1,0);
-        //table.removeToken(1,0);
-
-
-
-
-
 
 
 
