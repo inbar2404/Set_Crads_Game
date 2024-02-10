@@ -10,6 +10,8 @@ import bguspl.set.Env;
  */
 public class Player implements Runnable {
 
+
+
     /**
      * The game environment object.
      */
