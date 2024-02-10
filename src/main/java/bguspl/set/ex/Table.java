@@ -128,4 +128,36 @@ public class Table {
         // TODO implement
         return false;
     }
+
+    /**
+     * Count how many of all tokens are belong to the given player.
+     * @param player - the player the tokens belongs to.
+     * @return       - the number of tokens
+     */
+    public int getNumberOfTokensOfPlayer(int player) {
+        // TODO implement
+        return 1;
+    }
+
+    /**
+     * Checks if the player can place the token in the given slot number.
+     * @param player - the player the token belongs to.
+     * @param slot   - the number of the slot to placed.
+     * @return       - rather is it possible or not.
+     */
+    public boolean canPlaceToken(int player, int slot) {
+        // TODO implement
+        return true;
+    }
+
+    /**
+     * Checks if the player can remove the token in the given slot number.
+     * @param player - the player the token belongs to.
+     * @param slot   - the number of the slot that asked to remove the token from.
+     * @return       - rather is it possible or not.
+     */
+    public boolean canRemoveToken(int player, int slot) {
+        // TODO implement
+        return true;
+    }
 }

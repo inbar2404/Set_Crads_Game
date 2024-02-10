@@ -142,6 +142,12 @@ public class Config {
     private final int[][] playerKeys;
 
     /**
+     * The waiting time for next time update - beat.
+     */
+    // TODO: Check in the Forum if is it ok the variable here or replace it
+    public static final long BEAT_TIME = 1000;
+
+    /**
      * The default scan codes data (this is the same as in the default config.properties file)
      */
     private static final String[] playerKeysDefaults = {
