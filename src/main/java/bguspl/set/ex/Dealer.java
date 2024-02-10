@@ -135,8 +135,8 @@ public class Dealer implements Runnable {
      * @param player   - the player id number.
      * @return         - rather the set is valid or not.
      */
-    // TODO: In case we decided to replce the run() in player so this method should be private
-    public boolean isSetValid(int player) {
+    // TODO: see if there is a better solution for that
+    public static boolean isSetValid(int player) {
         // TODO implement
         return true;
     }

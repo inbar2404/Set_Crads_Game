@@ -149,4 +149,15 @@ public class Table {
         // TODO implement
         return true;
     }
+
+    /**
+     * Checks if the player can remove the token in the given slot number.
+     * @param player - the player the token belongs to.
+     * @param slot   - the number of the slot that asked to remove the token from.
+     * @return       - rather is it possible or not.
+     */
+    public boolean canRemoveToken(int player, int slot) {
+        // TODO implement
+        return true;
+    }
 }

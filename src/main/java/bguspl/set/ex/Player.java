@@ -56,7 +56,7 @@ public class Player implements Runnable {
     /**
      * We use semaphore in order to implement the wait & notify mechanism
      */
-    // TODO: Consult with Bar - maybe we should create FaireSemaphore (or even reader-writer) and use it instead?
+    // TODO: Create FaireSemaphore and use it instead
     private Semaphore semaphore;
 
     /**
@@ -65,20 +65,14 @@ public class Player implements Runnable {
     private LinkedBlockingQueue<Integer> actions;
 
     /**
-     * The dealer in the game.
-     */
-    private final Dealer dealer; // TODO: It is look very wrong that a player should knows his dealer.
-
-    /**
      * The class constructor.
      *
      * @param env    - the environment object.
-     * @param dealer - the dealer object.
      * @param table  - the table object.
      * @param id     - the id of the player.
      * @param human  - true iff the player is a human player (i.e. input is provided manually, via the keyboard).
      */
-    public Player(Env env, Dealer dealer, Table table, int id, boolean human) {
+    public Player(Env env, Table table, int id, boolean human) {
         this.env = env;
         this.table = table;
         this.id = id;
@@ -86,7 +80,6 @@ public class Player implements Runnable {
         this.terminate = false; // We want to init it to False
         this.semaphore = new Semaphore(1);
         this.actions = new LinkedBlockingQueue<Integer>(env.config.featureSize); // Number of actions should be equals to size of a set
-        this.dealer = dealer;
     }
 
     /**
@@ -104,25 +97,22 @@ public class Player implements Runnable {
             {
                 int action = this.actions.poll();
                 // Execute the action - rather is it placing or removing
-                // TODO: Consult with Bar if using synchronized in this if-else scope is the best solution?
                 if(table.canPlaceToken(id, action)) {
                     synchronized (table) {
                         table.placeToken(id, action);
                     }
                 }
-                else {
+                else if (table.canRemoveToken(id, action)) {
                     synchronized (table) {
                         table.removeToken(id, action);
                     }
                 }
-                // TODO: Consult with Bar - is this code should be here or in the dealer class?
                 // In case of 3 tokens that are placed on deck - we will check if we have a set
                 boolean hasSet = table.getNumberOfTokensOfPlayer(id)==3;
                 if (hasSet) {
                     try {
                         semaphore.acquire();
-                        // TODO: It feels very wrong to have here an object of dealer
-                        if(dealer.isSetValid(this.id)){
+                        if(Dealer.isSetValid(this.id)){
                             point();
                         }
                         else {
@@ -152,9 +142,6 @@ public class Player implements Runnable {
                 Random random = new Random();
                 int randomSlot = random.nextInt(env.config.tableSize);
                 keyPressed(randomSlot);
-                try {
-                    Thread.sleep(1); // TODO: Consult with Bar: is this the best implementation? what other options are there?
-                } catch (InterruptedException ignored) {}
             }
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
@@ -166,7 +153,7 @@ public class Player implements Runnable {
      */
     public void terminate() {
         this.terminate = true;
-        // TODO: Consult with Bar: I think I should add - Thread.currentThread().interrupt();  what do you think?
+        Thread.currentThread().interrupt();
     }
 
     /**
@@ -203,7 +190,9 @@ public class Player implements Runnable {
      * @param time - the time to freeze this player
      */
     private void freezePlayer(long time){
+        // We update the freeze time in the ui for the relevant player
         env.ui.setFreeze(this.id,time);
+        // As long as time not over - sleep for the defined beat and then update the remain time
         while (time > 0) {
             try {
                 Thread.sleep(env.config.BEAT_TIME);
