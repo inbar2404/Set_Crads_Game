@@ -138,7 +138,7 @@ public class Table {
      * @return       - true iff a card can be removed, when its slot is not null .
      */
     public boolean canRemoveCard(int slot){
-        return (slotToCard[slot] != null);
+        return (slot < env.config.tableSize && slotToCard[slot] != null);
     }
 
     /**
