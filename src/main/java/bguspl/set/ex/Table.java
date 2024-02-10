@@ -128,7 +128,7 @@ public class Table {
             int card = slotToCard[slot];
             cardToSlot[card] = null;
             slotToCard[slot] = null;
-            //remove the slot from all players-tokens lists
+            // Remove the slot from all players-tokens lists
             removeFromAllLists(slot);
             // Call the ui to actually remove the card and tokens from graphics - the ui class throws exception if out of bounds
             env.ui.removeCard(slot);
