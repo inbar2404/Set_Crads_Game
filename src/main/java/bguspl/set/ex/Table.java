@@ -152,6 +152,7 @@ public class Table {
         env.ui.placeToken(player, slot);
     }
 
+
     /**
      * Checks if the player can place the token in the given slot number.
      * @param player - the player the token belongs to.
