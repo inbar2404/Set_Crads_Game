@@ -163,6 +163,7 @@ public class Table {
         return (!existingTokenPlace(player,slot) && (slotToCard[slot] != null) && getNumberOfTokensOfPlayer(player) <env.config.featureSize);
     }
 
+
     /**
      * Removes a token of a player from a grid slot.
      * @param player - the player the token belongs to.
