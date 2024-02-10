@@ -49,8 +49,8 @@ public class Table {
         this.cardToSlot = cardToSlot;
         this.playersTokensMap = new HashMap<>();
         // Initialize hash map to playerId-tokens mapping
-        for (int i = 0; i < env.config.players; i++) {
-            this.playersTokensMap.put(i,new LinkedList<Integer>());
+        for (int playerID = 0; playerID < env.config.players; playerID++) {
+            this.playersTokensMap.put(playerID,new LinkedList<Integer>());
         }
     }
 
@@ -173,6 +173,7 @@ public class Table {
         // Remove the token from the player-to-tokens mapping, and from the ui
         getTokens(player).remove((Integer) slot);
         env.ui.removeToken(player, slot);
+        // TODO check in forum if we need input check  here and return false
         return true;
     }
 
