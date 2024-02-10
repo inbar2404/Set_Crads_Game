@@ -69,10 +69,6 @@ public class Main {
         ThreadLogger dealerThread = new ThreadLogger(dealer, "dealer", logger);
         dealerThread.startWithLog();
 
-
-
-
-
         try {
             // shutdown stuff
             dealerThread.joinWithLog();

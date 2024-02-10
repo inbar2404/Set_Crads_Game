@@ -129,4 +129,15 @@ public class Dealer implements Runnable {
     private void announceWinners() {
         // TODO implement
     }
+
+    /**
+     * Check if the chosen cards of the given player create a valid set.
+     * @param player   - the player id number.
+     * @return         - rather the set is valid or not.
+     */
+    // TODO: see if there is a better solution for that
+    public static boolean isSetValid(int player) {
+        // TODO implement
+        return true;
+    }
 }
