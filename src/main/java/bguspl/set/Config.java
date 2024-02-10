@@ -144,6 +144,7 @@ public class Config {
     /**
      * The waiting time for next time update - beat.
      */
+    // TODO: Check in the Forum if is it ok the variable here or replace it
     public static final long BEAT_TIME = 1000;
 
     /**

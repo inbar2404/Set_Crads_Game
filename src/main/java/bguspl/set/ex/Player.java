@@ -161,6 +161,7 @@ public class Player implements Runnable {
      *
      * @param slot - the slot corresponding to the key pressed.
      */
+    // TODO: Consider later how to hansle the case of the "else"
     public void keyPressed(int slot) {
         if (this.actions.size() < this.env.config.featureSize) {
             this.actions.add(slot);
