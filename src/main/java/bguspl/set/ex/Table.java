@@ -1,11 +1,11 @@
 package bguspl.set.ex;
-
 import bguspl.set.Env;
-
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.HashMap;
 
 /**
  * This class contains the data that is visible to the player.
@@ -30,6 +30,12 @@ public class Table {
     protected final Integer[] cardToSlot; // slot per card (if any)
 
     /**
+     * Mapping between a player and the tokens slots he has.
+     */
+    protected HashMap<Integer, LinkedList<Integer>> playersTokensMap;
+
+
+    /**
      * Constructor for testing.
      *
      * @param env        - the game environment objects.
@@ -41,6 +47,11 @@ public class Table {
         this.env = env;
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
+        this.playersTokensMap = new HashMap<>();
+        // Initialize hash map to playerId-tokens mapping
+        for (int playerID = 0; playerID < env.config.players; playerID++) {
+            this.playersTokensMap.put(playerID,new LinkedList<Integer>());
+        }
     }
 
     /**
@@ -49,7 +60,6 @@ public class Table {
      * @param env - the game environment objects.
      */
     public Table(Env env) {
-
         this(env, new Integer[env.config.tableSize], new Integer[env.config.deckSize]);
     }
 
@@ -84,39 +94,76 @@ public class Table {
      * @param card - the card id to place in the slot.
      * @param slot - the slot in which the card should be placed.
      *
-     * @post - the card placed is on the table, in the assigned slot.
+     * @post - the card placed is on the table, in the assigned slot. (it overrides the card in the slot if exists)
      */
     public void placeCard(int card, int slot) {
         try {
+            // Sleep the table delay time
             Thread.sleep(env.config.tableDelayMillis);
-        } catch (InterruptedException ignored) {}
-
+        }
+        catch (InterruptedException ignored) {}
+        // Update to keep the inv
         cardToSlot[card] = slot;
         slotToCard[slot] = card;
-
-        // TODO implement
+        // Call the ui to actually place the card on graphics
+        env.ui.placeCard(card, slot);
     }
 
     /**
-     * Removes a card from a grid slot on the table.
-     * @param slot - the slot from which to remove the card.
+     * Removes a card on the table in a grid slot.
+     * @param slot - the slot in which the card should be removed.
+     *
+     * @post - the card removed from the table, from the assigned slot.
      */
     public void removeCard(int slot) {
         try {
+            // Sleep the table delay time
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
 
-        // TODO implement
+        // Update the relevant cell in arrays to null
+        int card = slotToCard[slot];
+        cardToSlot[card] = null;
+        slotToCard[slot] = null;
+        // Remove the slot from all players-tokens lists
+        removeFromAllLists(slot);
+        // Call the ui to actually remove the card and tokens from graphics - the ui class throws exception if out of bounds
+        env.ui.removeCard(slot);
+        env.ui.removeTokens(slot);
     }
 
     /**
      * Places a player token on a grid slot.
+     * @param slot   - the slot on which trying place the token.
+     * @return       - true iff a card can be removed, when its slot is not null .
+     */
+    public boolean canRemoveCard(int slot){
+        return (slot < env.config.tableSize && slotToCard[slot] != null);
+    }
+
+    /**
+     * Place a token of a player from a grid slot.
      * @param player - the player the token belongs to.
-     * @param slot   - the slot on which to place the token.
+     * @param slot   - the slot from which to remove the token.
      */
     public void placeToken(int player, int slot) {
-        // TODO implement
+        // Add the slot to the player-to-tokens mapping, and update ui
+        getTokens(player).add(slot);
+        env.ui.placeToken(player, slot);
     }
+
+
+    /**
+     * Checks if the player can place the token in the given slot number.
+     * @param player - the player the token belongs to.
+     * @param slot   - the number of the slot to place.
+     * @return       - rather is it possible or not.
+     */
+    public boolean canPlaceToken(int player, int slot) {
+        // Return true if token didn't exist already, there is a card to place on it , and not reached the max tokens number
+        return (!existingTokenPlace(player,slot) && (slotToCard[slot] != null) && getNumberOfTokensOfPlayer(player) <env.config.featureSize);
+    }
+
 
     /**
      * Removes a token of a player from a grid slot.
@@ -125,28 +172,10 @@ public class Table {
      * @return       - true iff a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
-        // TODO implement
-        return false;
-    }
-
-    /**
-     * Count how many of all tokens are belong to the given player.
-     * @param player - the player the tokens belongs to.
-     * @return       - the number of tokens
-     */
-    public int getNumberOfTokensOfPlayer(int player) {
-        // TODO implement
-        return 1;
-    }
-
-    /**
-     * Checks if the player can place the token in the given slot number.
-     * @param player - the player the token belongs to.
-     * @param slot   - the number of the slot to placed.
-     * @return       - rather is it possible or not.
-     */
-    public boolean canPlaceToken(int player, int slot) {
-        // TODO implement
+        // Remove the token from the player-to-tokens mapping, and from the ui
+        getTokens(player).remove((Integer) slot);
+        env.ui.removeToken(player, slot);
+        // TODO check in forum if we need input check  here and return false
         return true;
     }
 
@@ -157,7 +186,47 @@ public class Table {
      * @return       - rather is it possible or not.
      */
     public boolean canRemoveToken(int player, int slot) {
-        // TODO implement
-        return true;
+        // True if it exists ,  there is a card which it's placed on
+        return existingTokenPlace(player,slot) && (slotToCard[slot] != null) ;
     }
+
+    /**
+     * Checks if the player can remove the token in the given slot number.
+     * @param player - the player the token belongs to.
+     * @param slot   - the number of the slot that asked to check the token from.
+     * @return       - rather is it exist there or not.
+     */
+    private boolean existingTokenPlace(int player,int slot)
+    {
+        return (getTokens(player).contains(slot));
+    }
+
+    /**
+     *  @param player - the player the token belongs to.
+     *  @return given player tokens slots list
+     */
+    protected LinkedList<Integer> getTokens(int player)
+    {
+        return playersTokensMap.get(player);
+    }
+
+    /**   @param slot   - the number of the slot that asked to be removed from lists.
+     *    Method to remove a given slot from all lists
+     */
+    private void removeFromAllLists(int slot) {
+        for (LinkedList<Integer> list : playersTokensMap.values()) {
+            // Remove the number if it exists in the list
+            list.removeIf(number -> number.equals(slot));
+        }
+    }
+    /**
+     * Count how many of all tokens are belong to the given player.
+     * @param player - the player the tokens belongs to.
+     * @return       - the number of tokens
+     */
+    public int getNumberOfTokensOfPlayer(int player) {
+        return playersTokensMap.get(player).size();
+    }
+
 }
+
