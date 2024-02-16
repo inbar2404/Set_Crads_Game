@@ -5,6 +5,7 @@ import java.util.Random;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.LinkedBlockingQueue;
 
+
 /**
  * This class manages the players' threads and data
  *
@@ -13,7 +14,10 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class Player implements Runnable {
 
-
+    /**
+     * The waiting time for next time update - beat.
+     */
+    public static final long BEAT_TIME = 1000;
 
     /**
      * The game environment object.
@@ -58,7 +62,6 @@ public class Player implements Runnable {
     /**
      * We use semaphore in order to implement the wait & notify mechanism
      */
-    // TODO: Create FaireSemaphore and use it instead
     private Semaphore semaphore;
 
     /**
@@ -74,13 +77,14 @@ public class Player implements Runnable {
      * @param id     - the id of the player.
      * @param human  - true iff the player is a human player (i.e. input is provided manually, via the keyboard).
      */
-    public Player(Env env, Table table, int id, boolean human) {
+    public Player(Env env, Dealer dealer, Table table, int id, boolean human) {
+        // TODO: Isn't it problematic getting dealer and not using it?
         this.env = env;
         this.table = table;
         this.id = id;
         this.human = human;
         this.terminate = false; // We want to init it to False
-        this.semaphore = new Semaphore(1);
+        this.semaphore = new Semaphore(1, true); // The true flag, indicate it is fair Semaphore
         this.actions = new LinkedBlockingQueue<Integer>(env.config.featureSize); // Number of actions should be equals to size of a set
     }
 
@@ -100,14 +104,10 @@ public class Player implements Runnable {
                 int action = this.actions.poll();
                 // Execute the action - rather is it placing or removing
                 if(table.canPlaceToken(id, action)) {
-                    synchronized (table) {
-                        table.placeToken(id, action);
-                    }
+                    table.placeToken(id, action);
                 }
                 else if (table.canRemoveToken(id, action)) {
-                    synchronized (table) {
-                        table.removeToken(id, action);
-                    }
+                    table.removeToken(id, action);
                 }
                 // In case of 3 tokens that are placed on deck - we will check if we have a set
                 boolean hasSet = table.getNumberOfTokensOfPlayer(id)==3;
@@ -198,9 +198,9 @@ public class Player implements Runnable {
         // As long as time not over - sleep for the defined beat and then update the remain time
         while (time > 0) {
             try {
-                Thread.sleep(env.config.BEAT_TIME);
+                Thread.sleep(Player.BEAT_TIME);
             } catch (InterruptedException ignored) {}
-            time -= env.config.BEAT_TIME;
+            time -= Player.BEAT_TIME;
             env.ui.setFreeze(this.id, time);
         }
     }
