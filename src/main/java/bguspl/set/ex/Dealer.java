@@ -2,6 +2,7 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -57,6 +58,7 @@ public class Dealer implements Runnable {
             removeAllCardsFromTable();
         }
         announceWinners();
+        terminate();
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
 
@@ -76,7 +78,12 @@ public class Dealer implements Runnable {
      * Called when the game should be terminated.
      */
     public void terminate() {
-        // TODO implement
+        for (Player player : players) {
+            // TODO: Consult with Bar: in Player.java terminate() method I wrote: Thread.currentThread().interrupt();
+            //  Is it mean that I don't have to handle interrupt and join the thread here, am I right?
+            player.terminate();
+        }
+        this.terminate = true;
     }
 
     /**
@@ -113,7 +120,18 @@ public class Dealer implements Runnable {
      * Reset and/or update the countdown and the countdown display.
      */
     private void updateTimerDisplay(boolean reset) {
-        // TODO implement
+        // TODO: Consult with Bar -  should I do a while of letting thread to sleep and each time update or it should be the timeLooper Responsibility?
+        boolean shouldWarn = false;
+        long timeLeft = env.config.turnTimeoutMillis;
+        if (reset) {
+            // TODO: Consult with Bar - I'm not sure my reshuffleTime calculation is correct
+            reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+        } else {
+            timeLeft = reshuffleTime - System.currentTimeMillis();
+            shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
+            // TODO: Consult with Bar - in case of should warn, do I need to use also "void setElapsed(long millies)"?
+        }
+        env.ui.setCountdown(timeLeft, shouldWarn);
     }
 
     /**
@@ -127,17 +145,32 @@ public class Dealer implements Runnable {
      * Check who is/are the winner/s and displays them.
      */
     private void announceWinners() {
-        // TODO implement
+        int maxScore = 0;
+        List<Integer> winners = new ArrayList<>();
+        // Iterate over all players to find the players with maximal score
+        for (Player player : players) {
+            if (maxScore < player.score()) {
+                maxScore = player.score();
+                // Update ids of the winder - according to the new maxScore
+                winners.clear();
+                winners.add(player.id);
+            } else if (maxScore == player.score()) {
+                winners.add(player.id);
+            }
+        }
+        // Convert the winner List<Integer> to int array
+        int[] finalWinners = winners.stream().mapToInt(Integer::intValue).toArray();
+        env.ui.announceWinner(finalWinners);
     }
 
     /**
      * Check if the chosen cards of the given player create a valid set.
-     * @param player   - the player id number.
-     * @return         - rather the set is valid or not.
+     *
+     * @param id - the player id number.
+     * @return - rather the set is valid or not.
      */
-    // TODO: see if there is a better solution for that
-    public static boolean isSetValid(int player) {
-        // TODO implement
-        return true;
+    public boolean isSetValid(int id) {
+        int[] cards = table.getPlayerCards(id);
+        return env.util.testSet(cards);
     }
 }
