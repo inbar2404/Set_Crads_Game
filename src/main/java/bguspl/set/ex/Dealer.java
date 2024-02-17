@@ -79,8 +79,6 @@ public class Dealer implements Runnable {
      */
     public void terminate() {
         for (Player player : players) {
-            // TODO: Consult with Bar: in Player.java terminate() method I wrote: Thread.currentThread().interrupt();
-            //  Is it mean that I don't have to handle interrupt and join the thread here, am I right?
             player.terminate();
         }
         this.terminate = true;
@@ -129,7 +127,7 @@ public class Dealer implements Runnable {
         } else {
             timeLeft = reshuffleTime - System.currentTimeMillis();
             shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
-            // TODO: Consult with Bar - in case of should warn, do I need to use also "void setElapsed(long millies)"?
+            // TODO: Waiting for answer in the Forum: in case of should warn, do I need to use also "void setElapsed(long millies)"?
         }
         env.ui.setCountdown(timeLeft, shouldWarn);
     }
