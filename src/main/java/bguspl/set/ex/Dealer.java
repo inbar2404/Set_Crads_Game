@@ -40,10 +40,10 @@ public class Dealer implements Runnable {
     private long reshuffleTime = Long.MAX_VALUE;
 
     /**
-     * The cards slots that we need to remove from table in next remove action.
+     * The slots of cards that we need to remove from table in next remove action.
      */
     // TODO update this list on isSetValid()
-    private LinkedList<Integer> cardsSlotsToRemove = new LinkedList<>();
+    private LinkedList<Integer> slotsToRemove = new LinkedList<>();
 
     /**
      * True iff there is a set to check for the dealer.
@@ -111,12 +111,12 @@ public class Dealer implements Runnable {
     private void removeCardsFromTable() {
         // TODO check if needed synchronize
         // TODO update cardsSlotsToRemove field on isSetValid(to the set slots) and on countdown timeout(to 0-11 slots)
-        for (int cardsSlot : cardsSlotsToRemove) {
-            if(table.canRemoveCard(cardsSlot))
-                table.removeCard(cardsSlot);
+        for (int slot : slotsToRemove) {
+            if(table.canRemoveCard(slot))
+                table.removeCard(slot);
         }
         // Clears the vector when finished removing the cards
-        cardsSlotsToRemove.clear();
+        slotsToRemove.clear();
     }
 
     /**
@@ -129,12 +129,12 @@ public class Dealer implements Runnable {
         // The amount of missing places for cards on the table is (table size - current number of cards on table)
         int missingCardsCount =  env.config.tableSize - table.countCards();
         LinkedList<Integer> cardsToPlace = new LinkedList<>();
-        for (int cardNum =0; cardNum <missingCardsCount && !deck.isEmpty() ; cardNum++)
+        for (int cardNum =0; cardNum < missingCardsCount && !deck.isEmpty() ; cardNum++)
         {
-            //add to list of cards to place on table from. taken from the deck, while it's not empty
+            // Add to list of cards to place on table from. taken from the deck, while it's not empty
             cardsToPlace.add(deck.remove(deck.size()-1));
         }
-        //call the table function to update the data and ui
+        // Call the table function to update the data and ui
         table.placeCardsOnTable(cardsToPlace);
     }
 

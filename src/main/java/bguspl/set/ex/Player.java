@@ -106,7 +106,8 @@ public class Player implements Runnable {
                 if(table.canPlaceToken(id, action)) {
                     table.placeToken(id, action);
                 }
-                else if (table.canRemoveToken(id, action)) {
+                else  {
+                    // The check if it can be removed is also inside this function
                     table.removeToken(id, action);
                 }
                 // In case of 3 tokens that are placed on deck - we will check if we have a set

@@ -256,7 +256,7 @@ public class Table {
     public void placeCardsOnTable(LinkedList<Integer> cardsToPlace)
     {
         for (int slot=0; slot < slotToCard.length && !cardsToPlace.isEmpty() ; slot++) {
-            // Run throw all slots and place the cards from the list on the empty ones , while there are new cards to place
+            // Run through all slots and place the cards from the list on the empty ones , while there are new cards to place
             if (slotToCard[slot] == null) {
                 placeCard(cardsToPlace.removeLast(),slot);
             }
