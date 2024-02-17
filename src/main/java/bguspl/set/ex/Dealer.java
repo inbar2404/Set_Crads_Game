@@ -52,7 +52,7 @@ public class Dealer implements Runnable {
     private LinkedList<Integer> slotsToRemove = new LinkedList<>();
 
     /**
-     * True iff there is a set to check for the dealer.
+     * True if there is a set to check for the dealer.
      */
     boolean someoneHasSet = false;
     public Dealer(Env env, Table table, Player[] players) {
