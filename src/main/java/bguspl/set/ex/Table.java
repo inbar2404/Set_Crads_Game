@@ -172,13 +172,11 @@ public class Table {
      * @return       - true iff a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
-        if(canRemoveToken(player, slot)) {
-            // Remove the token from the player-to-tokens mapping, and from the ui
-            getTokens(player).remove((Integer) slot);
-            env.ui.removeToken(player, slot);
-            return true;
-        }
-        return false;
+        // Remove the token from the player-to-tokens mapping, and from the ui
+        getTokens(player).remove((Integer) slot);
+        env.ui.removeToken(player, slot);
+        // TODO check in forum if we need input check  here and return false
+        return true;
     }
 
     /**
@@ -261,6 +259,19 @@ public class Table {
                 placeCard(cardsToPlace.removeLast(),slot);
             }
         }
+    }
+    /**
+     *
+     * @param player - the player's id who we want to find his selected cards.
+     * @return       -  the id's of the player selection.
+     */
+    public int[] getPlayerCards(int player){
+        LinkedList<Integer> slots = getTokens(player);
+        int[] cards = new int[slots.size()];
+        for (int currentSlot = 0; currentSlot < slots.size(); currentSlot++) {
+            cards[currentSlot] = this.slotToCard[slots.get(currentSlot)];
+        }
+        return cards;
     }
 }
 

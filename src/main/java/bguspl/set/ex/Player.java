@@ -37,7 +37,7 @@ public class Player implements Runnable {
     /**
      * The thread representing the current player.
      */
-    private Thread playerThread;
+    public Thread playerThread;
 
     /**
      * The thread of the AI (computer) player (an additional thread used to generate key presses).
@@ -70,22 +70,36 @@ public class Player implements Runnable {
     private LinkedBlockingQueue<Integer> actions;
 
     /**
+     * The main thread that handle the game, the "dealer".
+     */
+    private Dealer dealer;
+
+    /**
      * The class constructor.
      *
      * @param env    - the environment object.
+     * @param dealer - the main thread that handle the game, the "dealer".
      * @param table  - the table object.
      * @param id     - the id of the player.
      * @param human  - true iff the player is a human player (i.e. input is provided manually, via the keyboard).
      */
     public Player(Env env, Dealer dealer, Table table, int id, boolean human) {
-        // TODO: Isn't it problematic getting dealer and not using it?
         this.env = env;
         this.table = table;
         this.id = id;
         this.human = human;
         this.terminate = false; // We want to init it to False
-        this.semaphore = new Semaphore(1, true); // The true flag, indicate it is fair Semaphore
         this.actions = new LinkedBlockingQueue<Integer>(env.config.featureSize); // Number of actions should be equals to size of a set
+        this.dealer = dealer;
+    }
+
+    /**
+     * A setter for the semaphore object.
+     * @param semaphore - The semaphore object.
+     */
+    public void setSemaphore(Semaphore semaphore)
+    {
+        this.semaphore = semaphore;
     }
 
     /**
@@ -115,7 +129,7 @@ public class Player implements Runnable {
                 if (hasSet) {
                     try {
                         semaphore.acquire();
-                        if(Dealer.isSetValid(this.id)){
+                        if(dealer.isSetValid(this.id)){
                             point();
                         }
                         else {
@@ -127,6 +141,7 @@ public class Player implements Runnable {
                 }
             }
         }
+        // Try to stop thread in case of aiThread
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
@@ -164,7 +179,7 @@ public class Player implements Runnable {
      *
      * @param slot - the slot corresponding to the key pressed.
      */
-    // TODO: Consider later how to hansle the case of the "else"
+    // TODO: Consider later how to handle the case of the "else"
     public void keyPressed(int slot) {
         if (this.actions.size() < this.env.config.featureSize) {
             this.actions.add(slot);
