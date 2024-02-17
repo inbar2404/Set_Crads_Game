@@ -37,7 +37,7 @@ public class Player implements Runnable {
     /**
      * The thread representing the current player.
      */
-    private Thread playerThread;
+    public Thread playerThread;
 
     /**
      * The thread of the AI (computer) player (an additional thread used to generate key presses).
@@ -97,7 +97,6 @@ public class Player implements Runnable {
      * A setter for the semaphore object.
      * @param semaphore - The semaphore object.
      */
-    // TODO: Consult with Bar - maybe it will be rather implement this as Singleton instead of this implantation
     public void setSemaphore(Semaphore semaphore)
     {
         this.semaphore = semaphore;

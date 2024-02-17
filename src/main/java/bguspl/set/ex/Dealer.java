@@ -82,8 +82,15 @@ public class Dealer implements Runnable {
     public void terminate() {
         // Iterating reverse order in order to terminate all threads gracefully
         // TODO: Consult with Bar - do you think it is enough to make sure the above statement?
-        for(int playerNumber=players.length-1; playerNumber>=0; playerNumber--) {
+        for (int playerNumber = players.length - 1; playerNumber >= 0; playerNumber--) {
             players[playerNumber].terminate();
+            // TODO: Should I handle that differently when it is AIThread?
+            while (players[playerNumber].playerThread.isAlive()) {
+                try {
+                    players[playerNumber].playerThread.join();
+                } catch (InterruptedException ignored) {
+                }
+            }
         }
         this.terminate = true;
     }
@@ -172,6 +179,7 @@ public class Dealer implements Runnable {
      * @return - rather the set is valid or not.
      */
     public boolean isSetValid(int id) {
+        //TODO: Check if needed here a call to removeCardsFromTable(), and maybe a field of cardsToRemove to update for usage
         int[] cards = table.getPlayerCards(id);
         return env.util.testSet(cards);
     }
@@ -182,7 +190,7 @@ public class Dealer implements Runnable {
     private void runPlayersThreads() {
         // The true flag, indicate it is fair Semaphore
         Semaphore semaphore = new Semaphore(1, true);
-        for(int playerNumber = 0; playerNumber<players.length; playerNumber++){
+        for (int playerNumber = 0; playerNumber < players.length; playerNumber++) {
             // We init the semaphore here because we want to make sure it is the same one for all players
             players[playerNumber].setSemaphore(semaphore);
             Thread playerThread = new Thread(players[playerNumber], env.config.playerNames[playerNumber]);
