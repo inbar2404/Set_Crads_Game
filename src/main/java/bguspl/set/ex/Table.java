@@ -222,11 +222,24 @@ public class Table {
     /**
      * Count how many of all tokens are belong to the given player.
      * @param player - the player the tokens belongs to.
-     * @return       - the number of tokens
+     * @return       - the number of tokens.
      */
     public int getNumberOfTokensOfPlayer(int player) {
         return playersTokensMap.get(player).size();
     }
 
+    /**
+     *
+     * @param player - the player's id who we want to find his selected cards.
+     * @return       -  the id's of the player selection.
+     */
+    public int[] getPlayerCards(int player){
+        LinkedList<Integer> slots = getTokens(player);
+        int[] cards = new int[slots.size()];
+        for (int currentSlot = 0; currentSlot < slots.size(); currentSlot++) {
+            cards[currentSlot] = this.slotToCard[slots.get(currentSlot)];
+        }
+        return cards;
+    }
 }
 
