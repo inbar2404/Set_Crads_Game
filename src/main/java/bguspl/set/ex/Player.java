@@ -89,9 +89,18 @@ public class Player implements Runnable {
         this.id = id;
         this.human = human;
         this.terminate = false; // We want to init it to False
-        this.semaphore = new Semaphore(1, true); // The true flag, indicate it is fair Semaphore
         this.actions = new LinkedBlockingQueue<Integer>(env.config.featureSize); // Number of actions should be equals to size of a set
         this.dealer = dealer;
+    }
+
+    /**
+     * A setter for the semaphore object.
+     * @param semaphore - The semaphore object.
+     */
+    // TODO: Consult with Bar - maybe it will be rather implement this as Singleton instead of this implantation
+    public void setSemaphore(Semaphore semaphore)
+    {
+        this.semaphore = semaphore;
     }
 
     /**

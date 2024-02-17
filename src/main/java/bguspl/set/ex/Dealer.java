@@ -4,6 +4,7 @@ import bguspl.set.Env;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -51,6 +52,7 @@ public class Dealer implements Runnable {
     @Override
     public void run() {
         env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
+        runPlayersThreads();
         while (!shouldFinish()) {
             placeCardsOnTable();
             timerLoop();
@@ -78,8 +80,10 @@ public class Dealer implements Runnable {
      * Called when the game should be terminated.
      */
     public void terminate() {
-        for (Player player : players) {
-            player.terminate();
+        // Iterating reverse order in order to terminate all threads gracefully
+        // TODO: Consult with Bar - do you think it is enough to make sure the above statement?
+        for(int playerNumber=players.length-1; playerNumber>=0; playerNumber--) {
+            players[playerNumber].terminate();
         }
         this.terminate = true;
     }
@@ -170,5 +174,19 @@ public class Dealer implements Runnable {
     public boolean isSetValid(int id) {
         int[] cards = table.getPlayerCards(id);
         return env.util.testSet(cards);
+    }
+
+    /**
+     * Init and run all players threads.
+     */
+    private void runPlayersThreads() {
+        // The true flag, indicate it is fair Semaphore
+        Semaphore semaphore = new Semaphore(1, true);
+        for(int playerNumber = 0; playerNumber<players.length; playerNumber++){
+            // We init the semaphore here because we want to make sure it is the same one for all players
+            players[playerNumber].setSemaphore(semaphore);
+            Thread playerThread = new Thread(players[playerNumber], env.config.playerNames[playerNumber]);
+            playerThread.start();
+        }
     }
 }
