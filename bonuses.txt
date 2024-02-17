@@ -16,6 +16,7 @@ Every place instead of writing constant number we use the config constant variab
 we created relevant constant variable in the file and use it where needed. (i.e: BEAT_TIME const in Player.java).
 It is not really needed tests because constants are well-known concept.
 
+
 --------------------
 
 2. Terminating all threads (that you created) gracefully and in reverse order to the order they were created in.
