@@ -172,11 +172,13 @@ public class Table {
      * @return       - true iff a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
-        // Remove the token from the player-to-tokens mapping, and from the ui
-        getTokens(player).remove((Integer) slot);
-        env.ui.removeToken(player, slot);
-        // TODO check in forum if we need input check  here and return false
-        return true;
+        if(canRemoveToken(player, slot)) {
+            // Remove the token from the player-to-tokens mapping, and from the ui
+            getTokens(player).remove((Integer) slot);
+            env.ui.removeToken(player, slot);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -228,5 +230,37 @@ public class Table {
         return playersTokensMap.get(player).size();
     }
 
+
+    /**
+     * Removes all cards existing on the table
+     * @return - a list of the removed cards
+     */
+    public LinkedList<Integer> removeAllCardsFromTable()
+    {
+        LinkedList<Integer> removedCardsList = new LinkedList<>();
+
+        for (int slot=0; slot < slotToCard.length ; slot++) {
+            // Run throw all slots and remove the cards from the not empty ones
+            if (slotToCard[slot] != null) {
+                removedCardsList.add(slotToCard[slot]);
+                removeCard(slot);
+            }
+        }
+        return removedCardsList;
+    }
+
+    /**
+     * Places cards given from the dealer on empty slots.
+     * @param cardsToPlace - list of cards to place on the empty slots on the table.
+     */
+    public void placeCardsOnTable(LinkedList<Integer> cardsToPlace)
+    {
+        for (int slot=0; slot < slotToCard.length && !cardsToPlace.isEmpty() ; slot++) {
+            // Run throw all slots and place the cards from the list on the empty ones , while there are new cards to place
+            if (slotToCard[slot] == null) {
+                placeCard(cardsToPlace.removeLast(),slot);
+            }
+        }
+    }
 }
 

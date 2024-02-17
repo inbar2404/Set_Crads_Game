@@ -2,6 +2,7 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -36,6 +37,12 @@ public class Dealer implements Runnable {
      * The time when the dealer needs to reshuffle the deck due to turn timeout.
      */
     private long reshuffleTime = Long.MAX_VALUE;
+
+    /**
+     * The cards slots that we need to remove from table in next remove action.
+     */
+    // TODO update this list on isSetValid()
+    private LinkedList<Integer> cardsSlotsToRemove = new LinkedList<>();
 
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
@@ -78,7 +85,6 @@ public class Dealer implements Runnable {
     public void terminate() {
         // TODO implement
     }
-
     /**
      * Check if the game should be terminated or the game end conditions are met.
      *
@@ -92,14 +98,31 @@ public class Dealer implements Runnable {
      * Checks cards should be removed from the table and removes them.
      */
     private void removeCardsFromTable() {
-        // TODO implement
+        // TODO check if needed synchronize
+        // TODO update cardsSlotsToRemove field on isSetValid(to the set slots) and on countdown timeout(to 0-11 slots)
+        for (int cardsSlot : cardsSlotsToRemove) {
+            if(table.canRemoveCard(cardsSlot))
+                table.removeCard(cardsSlot);
+        }
+        // Clears the vector when finished removing the cards
+        cardsSlotsToRemove.clear();
     }
 
     /**
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
-        // TODO implement
+        // TODO check if need synchronize
+        // The amount of missing places for cards on the table is (table size - current number of cards on table)
+        int missingCardsCount =  env.config.tableSize - table.countCards();
+        LinkedList<Integer> cardsToPlace = new LinkedList<>();
+        for (int cardNum =0; cardNum <missingCardsCount && !deck.isEmpty() ; cardNum++)
+        {
+            //add to list of cards to place on table from. taken from the deck, while it's not empty
+            cardsToPlace.add(deck.remove(deck.size()-1));
+        }
+        //call the table function to update the data and ui
+        table.placeCardsOnTable(cardsToPlace);
     }
 
     /**
@@ -120,7 +143,10 @@ public class Dealer implements Runnable {
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
-        // TODO implement
+        // TODO: check if needed synchronize
+        LinkedList<Integer> removedCardsList = table.removeAllCardsFromTable();
+        // Merging deck and removedCardsList
+        deck.addAll(removedCardsList);
     }
 
     /**
