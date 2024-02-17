@@ -81,10 +81,8 @@ public class Dealer implements Runnable {
      */
     public void terminate() {
         // Iterating reverse order in order to terminate all threads gracefully
-        // TODO: Consult with Bar - do you think it is enough to make sure the above statement?
         for (int playerNumber = players.length - 1; playerNumber >= 0; playerNumber--) {
             players[playerNumber].terminate();
-            // TODO: Should I handle that differently when it is AIThread?
             while (players[playerNumber].playerThread.isAlive()) {
                 try {
                     players[playerNumber].playerThread.join();
