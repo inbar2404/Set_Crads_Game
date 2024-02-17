@@ -4,6 +4,7 @@ import bguspl.set.Env;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.Collections;
@@ -64,6 +65,7 @@ public class Dealer implements Runnable {
     @Override
     public void run() {
         env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
+        runPlayersThreads();
         while (!shouldFinish()) {
             placeCardsOnTable();
             //Inbar: it required me to add this try and catch, is this ok?
@@ -76,6 +78,7 @@ public class Dealer implements Runnable {
             removeAllCardsFromTable();
         }
         announceWinners();
+        terminate();
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
 
@@ -96,7 +99,17 @@ public class Dealer implements Runnable {
      * Called when the game should be terminated.
      */
     public void terminate() {
-        // TODO implement
+        // Iterating reverse order in order to terminate all threads gracefully
+        for (int playerNumber = players.length - 1; playerNumber >= 0; playerNumber--) {
+            players[playerNumber].terminate();
+            while (players[playerNumber].playerThread.isAlive()) {
+                try {
+                    players[playerNumber].playerThread.join();
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+        this.terminate = true;
     }
     /**
      * Check if the game should be terminated or the game end conditions are met.
@@ -158,7 +171,18 @@ public class Dealer implements Runnable {
      * Reset and/or update the countdown and the countdown display.
      */
     private void updateTimerDisplay(boolean reset) {
-        // TODO implement
+        // TODO: Consult with Bar -  should I do a while of letting thread to sleep and each time update or it should be the timeLooper Responsibility?
+        boolean shouldWarn = false;
+        long timeLeft = env.config.turnTimeoutMillis;
+        if (reset) {
+            // TODO: Consult with Bar - I'm not sure my reshuffleTime calculation is correct
+            reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+        } else {
+            timeLeft = reshuffleTime - System.currentTimeMillis();
+            shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
+            // TODO: Waiting for answer in the Forum: in case of should warn, do I need to use also "void setElapsed(long millies)"?
+        }
+        env.ui.setCountdown(timeLeft, shouldWarn);
     }
 
     /**
@@ -175,18 +199,48 @@ public class Dealer implements Runnable {
      * Check who is/are the winner/s and displays them.
      */
     private void announceWinners() {
-        // TODO implement
+        int maxScore = 0;
+        List<Integer> winners = new ArrayList<>();
+        // Iterate over all players to find the players with maximal score
+        for (Player player : players) {
+            if (maxScore < player.score()) {
+                maxScore = player.score();
+                // Update ids of the winder - according to the new maxScore
+                winners.clear();
+                winners.add(player.id);
+            } else if (maxScore == player.score()) {
+                winners.add(player.id);
+            }
+        }
+        // Convert the winner List<Integer> to int array
+        int[] finalWinners = winners.stream().mapToInt(Integer::intValue).toArray();
+        env.ui.announceWinner(finalWinners);
     }
 
     /**
      * Check if the chosen cards of the given player create a valid set.
-     * @param player   - the player id number.
-     * @return         - rather the set is valid or not.
+     *
+     * @param id - the player id number.
+     * @return - rather the set is valid or not.
      */
-    // TODO: see if there is a better solution for that
-    public static boolean isSetValid(int player) {
-        // TODO implement
-        return true;
+    public boolean isSetValid(int id) {
+        //TODO: Check if needed here a call to removeCardsFromTable(), and maybe a field of cardsToRemove to update for usage
+        int[] cards = table.getPlayerCards(id);
+        return env.util.testSet(cards);
+    }
+
+    /**
+     * Init and run all players threads.
+     */
+    private void runPlayersThreads() {
+        // The true flag, indicate it is fair Semaphore
+        Semaphore semaphore = new Semaphore(1, true);
+        for (int playerNumber = 0; playerNumber < players.length; playerNumber++) {
+            // We init the semaphore here because we want to make sure it is the same one for all players
+            players[playerNumber].setSemaphore(semaphore);
+            Thread playerThread = new Thread(players[playerNumber], env.config.playerNames[playerNumber]);
+            playerThread.start();
+        }
     }
 
     /**
