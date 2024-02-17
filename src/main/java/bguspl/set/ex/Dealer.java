@@ -6,6 +6,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.Collections;
 
 /**
  * This class manages the dealer's threads and data
@@ -44,6 +45,10 @@ public class Dealer implements Runnable {
     // TODO update this list on isSetValid()
     private LinkedList<Integer> cardsSlotsToRemove = new LinkedList<>();
 
+    /**
+     * True iff there is a set to check for the dealer.
+     */
+    boolean someoneHasSet = false;
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
@@ -59,7 +64,12 @@ public class Dealer implements Runnable {
         env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
         while (!shouldFinish()) {
             placeCardsOnTable();
-            timerLoop();
+            //Inbar: it required me to add this try and catch, is this ok?
+            try {
+                timerLoop();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             updateTimerDisplay(false);
             removeAllCardsFromTable();
         }
@@ -70,7 +80,8 @@ public class Dealer implements Runnable {
     /**
      * The inner loop of the dealer thread that runs as long as the countdown did not time out.
      */
-    private void timerLoop() {
+    private void timerLoop() throws InterruptedException {
+        // Inbar : It required me to add throws InterruptedException, is it ok?
         while (!terminate && System.currentTimeMillis() < reshuffleTime) {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
@@ -113,6 +124,8 @@ public class Dealer implements Runnable {
      */
     private void placeCardsOnTable() {
         // TODO check if need synchronize
+        // Reshuffle the deck for random cards drawn
+        reshuffleDeck();
         // The amount of missing places for cards on the table is (table size - current number of cards on table)
         int missingCardsCount =  env.config.tableSize - table.countCards();
         LinkedList<Integer> cardsToPlace = new LinkedList<>();
@@ -128,8 +141,15 @@ public class Dealer implements Runnable {
     /**
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
-    private void sleepUntilWokenOrTimeout() {
-        // TODO implement
+    private synchronized void  sleepUntilWokenOrTimeout() throws InterruptedException {
+        // Inbar : It required me to add throws InterruptedException, is it ok?
+        // TODO it will do bugs for sure
+        // TODO - Inbar add someoneHasSet = true and a notifyAll() on isSetValid, to wake up here the thread.
+        // TODO - we need to think if it will work and wont throw exceptions of thread in blocking state
+        // The thread is blocked until we need to update countdown, or to check set(by notify) - first of them
+        while(!someoneHasSet)
+            wait(1000);
+        someoneHasSet = false;
     }
 
     /**
@@ -165,5 +185,13 @@ public class Dealer implements Runnable {
     public static boolean isSetValid(int player) {
         // TODO implement
         return true;
+    }
+
+    /**
+     * Reshuffles randomly the deck.
+     *
+     */
+    private void reshuffleDeck(){
+        Collections.shuffle(deck);
     }
 }
