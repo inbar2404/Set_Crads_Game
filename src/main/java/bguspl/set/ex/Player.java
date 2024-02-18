@@ -129,6 +129,7 @@ public class Player implements Runnable {
                 if (hasSet) {
                     try {
                         semaphore.acquire();
+                        // TODO: Mani says it is not good like that - use notify instead
                         if(dealer.isSetValid(this.id)){
                             point();
                         }
