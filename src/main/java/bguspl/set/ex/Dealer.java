@@ -2,6 +2,8 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 import java.util.LinkedList;
+ 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
