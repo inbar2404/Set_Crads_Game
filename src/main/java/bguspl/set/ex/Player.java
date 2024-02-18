@@ -180,7 +180,7 @@ public class Player implements Runnable {
      *
      * @param slot - the slot corresponding to the key pressed.
      */
-    // TODO: Consider later how to handle the case of the "else"
+    // TODO: Consider later how to handle the case of the "else" - only for aiThread
     public void keyPressed(int slot) {
         if (this.actions.size() < this.env.config.featureSize) {
             this.actions.add(slot);

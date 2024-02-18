@@ -185,7 +185,6 @@ public class Dealer implements Runnable {
         } else {
             timeLeft = reshuffleTime - System.currentTimeMillis();
             shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
-            // TODO: Waiting for answer in the Forum: in case of should warn, do I need to use also "void setElapsed(long millies)"?
         }
         env.ui.setCountdown(timeLeft, shouldWarn);
     }
