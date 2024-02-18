@@ -1,7 +1,6 @@
 package bguspl.set.ex;
 
 import bguspl.set.Env;
-
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ArrayList;
@@ -9,8 +8,6 @@ import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.Collections;
-
-
 
 /**
  * This class manages the dealer's threads and data
@@ -34,7 +31,7 @@ public class Dealer implements Runnable {
     private final List<Integer> deck;
 
     /**
-     * True iff game should be terminated.
+     * True if game should be terminated.
      */
     private volatile boolean terminate;
 
@@ -50,9 +47,17 @@ public class Dealer implements Runnable {
     private LinkedList<Integer> slotsToRemove = new LinkedList<>();
 
     /**
-     * True iff there is a set to check for the dealer.
+     * True if there is a set to check for the dealer.
      */
     boolean someoneHasSet = false;
+
+    /**
+     * Represents a second in millis.
+     */
+    private final long secondInMillis = 1000;
+
+
+
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
@@ -112,6 +117,7 @@ public class Dealer implements Runnable {
         }
         this.terminate = true;
     }
+
     /**
      * Check if the game should be terminated or the game end conditions are met.
      *
@@ -126,9 +132,9 @@ public class Dealer implements Runnable {
      */
     private void removeCardsFromTable() {
         // TODO check if needed synchronize
-        // TODO update cardsSlotsToRemove field on isSetValid(to the set slots) and on countdown timeout(to 0-11 slots)
+        // TODO update slotsToRemove field on isSetValid(to the set slots)
         for (int slot : slotsToRemove) {
-            if(table.canRemoveCard(slot))
+            if (table.canRemoveCard(slot))
                 table.removeCard(slot);
         }
         // Clears the vector when finished removing the cards
@@ -143,12 +149,11 @@ public class Dealer implements Runnable {
         // Reshuffle the deck for random cards drawn
         reshuffleDeck();
         // The amount of missing places for cards on the table is (table size - current number of cards on table)
-        int missingCardsCount =  env.config.tableSize - table.countCards();
+        int missingCardsCount = env.config.tableSize - table.countCards();
         LinkedList<Integer> cardsToPlace = new LinkedList<>();
-        for (int cardNum =0; cardNum < missingCardsCount && !deck.isEmpty() ; cardNum++)
-        {
+        for (int cardNum = 0; cardNum < missingCardsCount && !deck.isEmpty(); cardNum++) {
             // Add to list of cards to place on table from. taken from the deck, while it's not empty
-            cardsToPlace.add(deck.remove(deck.size()-1));
+            cardsToPlace.add(deck.remove(deck.size() - 1));
         }
         // Call the table function to update the data and ui
         table.placeCardsOnTable(cardsToPlace);
@@ -157,14 +162,14 @@ public class Dealer implements Runnable {
     /**
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
-    private synchronized void  sleepUntilWokenOrTimeout() throws InterruptedException {
+    private synchronized void sleepUntilWokenOrTimeout() throws InterruptedException {
         // Inbar : It required me to add throws InterruptedException, is it ok?
-        // TODO it will do bugs for sure
+        // TODO check if it breaks the loop and updates the timer
         // TODO - Inbar add someoneHasSet = true and a notifyAll() on isSetValid, to wake up here the thread.
         // TODO - we need to think if it will work and wont throw exceptions of thread in blocking state
         // The thread is blocked until we need to update countdown, or to check set(by notify) - first of them
-        while(!someoneHasSet)
-            wait(1000);
+        while (!someoneHasSet)
+            wait(secondInMillis);
         someoneHasSet = false;
     }
 
@@ -246,9 +251,8 @@ public class Dealer implements Runnable {
 
     /**
      * Reshuffles randomly the deck.
-     *
      */
-    private void reshuffleDeck(){
+    private void reshuffleDeck() {
         Collections.shuffle(deck);
     }
 }
