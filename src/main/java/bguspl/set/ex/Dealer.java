@@ -202,7 +202,6 @@ public class Dealer implements Runnable {
         } else {
             timeLeft = reshuffleTime - System.currentTimeMillis();
             shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
-            // TODO: Waiting for answer in the Forum: in case of should warn, do I need to use also "void setElapsed(long millies)"?
         }
         env.ui.setCountdown(timeLeft, shouldWarn);
     }
@@ -270,7 +269,7 @@ public class Dealer implements Runnable {
         // The true flag, indicate it is fair Semaphore
         Semaphore semaphore = new Semaphore(1, true);
         for (int playerNumber = 0; playerNumber < players.length; playerNumber++) {
-            // We init the semaphore here because we want to make sure it is the same one for all players
+            // We initialize the semaphore here because we want to make sure it is the same one for all players
             players[playerNumber].setSemaphore(semaphore);
             Thread playerThread = new Thread(players[playerNumber], env.config.playerNames[playerNumber]);
             playerThread.start();
