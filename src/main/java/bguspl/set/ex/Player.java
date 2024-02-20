@@ -114,44 +114,43 @@ public class Player implements Runnable {
 
         while (!terminate) {
             // We will try to execute the user's actions
-            if (!this.actions.isEmpty()) {
-                int action = 0;
-                try {
-                    // The player thread waits until he has action to perform
-                    action = this.actions.take();
-                } catch (InterruptedException ignored) {
-                }
-                // Execute the action - rather is it placing or removing
-                if (table.canPlaceToken(id, action)) {
-                    {
-                        // Try to lock the table to put the token when allowed, and with no interruptions from other threads
-                        if (table.tableSemaphore.tryAcquire()) {
-                            table.placeToken(id, action);
-                            table.tableSemaphore.release();
-                        }
-                    }
-                } else {
-                    // Removes the token if possible
-                    if ((table.canRemoveToken(id, action))) {
-                        table.removeToken(id, action);
+            int action = 0;
+            try {
+                // The player thread waits until he has action to perform
+                action = this.actions.take();
+            } catch (InterruptedException ignored) {
+            }
+            // Execute the action - rather is it placing or removing
+            if (table.canPlaceToken(id, action)) {
+                {
+                    // Try to lock the table to put the token when allowed, and with no interruptions from other threads
+                    if (table.tableSemaphore.tryAcquire()) {
+                        table.placeToken(id, action);
+                        table.tableSemaphore.release();
                     }
                 }
-                // In case of 3 tokens that are placed on deck - we will check if we have a set
-                boolean hasSet = table.getNumberOfTokensOfPlayer(id) == 3;
-                // TODO: Meni says it is not good like that - use notify instead and pass all logic to the dealer
-                if (hasSet) {
-                    try {
-                        semaphore.acquire();
-                        if (dealer.isSetValid(this.id)) {
-                            point();
-                        } else {
-                            penalty();
-                        }
-                    } catch (InterruptedException ignored) {
-                    }
-                    semaphore.release();
+            } else {
+                // Removes the token if possible
+                if ((table.canRemoveToken(id, action))) {
+                    table.removeToken(id, action);
                 }
             }
+            // In case of 3 tokens that are placed on deck - we will check if we have a set
+            boolean hasSet = table.getNumberOfTokensOfPlayer(id) == 3;
+            // TODO: Meni says it is not good like that - use notify instead and pass all logic to the dealer
+            if (hasSet) {
+                try {
+                    semaphore.acquire();
+                    if (dealer.isSetValid(this.id)) {
+                        point();
+                    } else {
+                        penalty();
+                    }
+                } catch (InterruptedException ignored) {
+                }
+                semaphore.release();
+            }
+
         }
         // Try to stop thread in case of aiThread
         if (!human) try {
