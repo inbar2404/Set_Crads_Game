@@ -1,5 +1,7 @@
 package bguspl.set.ex;
+
 import bguspl.set.Env;
+
 import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,19 +44,12 @@ public class Dealer implements Runnable {
     /**
      * The slots of cards that we need to remove from table in next remove action.
      */
-    // TODO update this list on isSetValid()
     private LinkedList<Integer> slotsToRemove = new LinkedList<>();
 
     /**
-     * True if there is a set to check for the dealer.
+     * Represents almost a second in millis, for waking up the dealer for timer countdown update.
      */
-    boolean someoneHasSet = false;
-
-    /**
-     * Represents a second in millis.
-     */
-    private final long secondInMillis = 1000;
-
+    private final long ALMOST_SECOND_IN_MILLIS = 985;
 
 
     public Dealer(Env env, Table table, Player[] players) {
@@ -73,13 +68,8 @@ public class Dealer implements Runnable {
         runPlayersThreads();
         while (!shouldFinish()) {
             placeCardsOnTable();
-            //Inbar: it required me to add this try and catch, is this ok?
-            try {
-                timerLoop();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            updateTimerDisplay(false);
+            updateTimerDisplay(true);
+            timerLoop();
             removeAllCardsFromTable();
         }
         announceWinners();
@@ -90,8 +80,7 @@ public class Dealer implements Runnable {
     /**
      * The inner loop of the dealer thread that runs as long as the countdown did not time out.
      */
-    private void timerLoop() throws InterruptedException {
-        // Inbar : It required me to add throws InterruptedException, is it ok?
+    private void timerLoop() {
         while (!terminate && System.currentTimeMillis() < reshuffleTime) {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
@@ -130,13 +119,32 @@ public class Dealer implements Runnable {
      * Checks cards should be removed from the table and removes them.
      */
     private void removeCardsFromTable() {
-        // TODO check if needed synchronize
-        // TODO update slotsToRemove field on isSetValid(to the set slots)
-        for (int slot : slotsToRemove) {
-            if (table.canRemoveCard(slot))
-                table.removeCard(slot);
+
+        if (env.util.findSets(table.getAllCards(), 1).isEmpty()) {
+            // If there are no sets on table, synchronize on the table and remove all cards.
+            try {
+                table.tableSemaphore.acquire();
+            } catch (InterruptedException ignored) {
+            }
+            removeAllCardsFromTable();
+            table.tableSemaphore.release();
         }
-        // Clears the vector when finished removing the cards
+        if (!slotsToRemove.isEmpty()) {
+            // If there is a set found to remove, synchronize on the table and remove it.
+            try {
+                table.tableSemaphore.acquire();
+            } catch (InterruptedException ignored) {
+            }
+
+            for (int slot : slotsToRemove) {
+                // Remove the cards from the slots on the table.
+                if (table.canRemoveCard(slot)) {
+                    this.table.removeCard(slot);
+                }
+            }
+            table.tableSemaphore.release();
+        }
+        // Clears the list when finished removing the cards
         slotsToRemove.clear();
     }
 
@@ -144,43 +152,52 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
-        // TODO check if need synchronize
         // Reshuffle the deck for random cards drawn
         reshuffleDeck();
         // The amount of missing places for cards on the table is (table size - current number of cards on table)
         int missingCardsCount = env.config.tableSize - table.countCards();
         LinkedList<Integer> cardsToPlace = new LinkedList<>();
         for (int cardNum = 0; cardNum < missingCardsCount && !deck.isEmpty(); cardNum++) {
-            // Add to list of cards to place on table from. taken from the deck, while it's not empty
+            // Add to the list of cards needed to be places on the table . Taken from the deck, while it's not empty.
             cardsToPlace.add(deck.remove(deck.size() - 1));
         }
-        // Call the table function to update the data and ui
-        table.placeCardsOnTable(cardsToPlace);
+        if (!cardsToPlace.isEmpty()) {
+            // Synchronize on the table object while placing new cards on table
+            try {
+                table.tableSemaphore.acquire();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            // Call the table function to update the data and ui.
+            table.placeCardsOnTable(cardsToPlace);
+
+            table.tableSemaphore.release();
+            // Display hints if needed.
+            if (env.config.hints) {
+                table.hints();
+            }
+            updateTimerDisplay(true);
+        }
     }
 
     /**
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
-    private synchronized void sleepUntilWokenOrTimeout() throws InterruptedException {
-        // Inbar : It required me to add throws InterruptedException, is it ok?
-        // TODO check if it breaks the loop and updates the timer
-        // TODO - Inbar add someoneHasSet = true and a notifyAll() on isSetValid, to wake up here the thread.
-        // TODO - we need to think if it will work and wont throw exceptions of thread in blocking state
-        // The thread is blocked until we need to update countdown, or to check set(by notify) - first of them
-        while (!someoneHasSet)
-            wait(secondInMillis);
-        someoneHasSet = false;
+    private synchronized void sleepUntilWokenOrTimeout() {
+        // The thread sleeps until we need to update countdown
+        try {
+            Thread.sleep(ALMOST_SECOND_IN_MILLIS);
+        } catch (InterruptedException ignored) {
+        }
     }
 
     /**
      * Reset and/or update the countdown and the countdown display.
      */
     private void updateTimerDisplay(boolean reset) {
-        // TODO: Consult with Bar -  should I do a while of letting thread to sleep and each time update or it should be the timeLooper Responsibility?
         boolean shouldWarn = false;
         long timeLeft = env.config.turnTimeoutMillis;
         if (reset) {
-            // TODO: Consult with Bar - I'm not sure my reshuffleTime calculation is correct
             reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
         } else {
             timeLeft = reshuffleTime - System.currentTimeMillis();
@@ -194,9 +211,15 @@ public class Dealer implements Runnable {
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
-        // TODO: check if needed synchronize
+        // Synchronize on the table while removing the cards.
+        try {
+            table.tableSemaphore.acquire();
+        } catch (InterruptedException ignored) {
+        }
+
         LinkedList<Integer> removedCardsList = table.removeAllCardsFromTable();
-        // Merging deck and removedCardsList
+        table.tableSemaphore.release();
+        // Merging deck and removedCardsList.
         deck.addAll(removedCardsList);
     }
 
@@ -229,9 +252,15 @@ public class Dealer implements Runnable {
      * @return - rather the set is valid or not.
      */
     public boolean isSetValid(int id) {
-        //TODO: Check if needed here a call to removeCardsFromTable(), and maybe a field of cardsToRemove to update for usage
         int[] cards = table.getPlayerCards(id);
-        return env.util.testSet(cards);
+        boolean isSetValid = env.util.testSet(cards);
+        if (isSetValid) {
+            // If the set is valid - we need to remove the cards, so it updates the slotsToRemove list to the relevant slots.
+            for (int card : cards) {
+                this.slotsToRemove.add(table.cardToSlot[card]);
+            }
+        }
+        return isSetValid;
     }
 
     /**

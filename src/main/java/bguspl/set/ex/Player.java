@@ -1,6 +1,7 @@
 package bguspl.set.ex;
 
 import bguspl.set.Env;
+
 import java.util.Random;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -95,10 +96,10 @@ public class Player implements Runnable {
 
     /**
      * A setter for the semaphore object.
+     *
      * @param semaphore - The semaphore object.
      */
-    public void setSemaphore(Semaphore semaphore)
-    {
+    public void setSemaphore(Semaphore semaphore) {
         this.semaphore = semaphore;
     }
 
@@ -113,36 +114,44 @@ public class Player implements Runnable {
 
         while (!terminate) {
             // We will try to execute the user's actions
-            if (this.actions.size() > 0)
-            {
+            if (!this.actions.isEmpty()) {
                 int action = this.actions.poll();
                 // Execute the action - rather is it placing or removing
-                if(table.canPlaceToken(id, action)) {
-                    table.placeToken(id, action);
-                }
-                else  {
-                    // The check if it can be removed is also inside this function
-                    table.removeToken(id, action);
+                if (table.canPlaceToken(id, action)) {
+                    {
+                        // Try to lock the table to put the token when allowed, and with no interruptions from other threads
+                        if (table.tableSemaphore.tryAcquire()) {
+                            table.placeToken(id, action);
+                            table.tableSemaphore.release();
+                        }
+                    }
+                } else {
+                    // Removes the token if possible
+                    if ((table.canRemoveToken(id, action))) {
+                        table.removeToken(id, action);
+                    }
                 }
                 // In case of 3 tokens that are placed on deck - we will check if we have a set
-                boolean hasSet = table.getNumberOfTokensOfPlayer(id)==3;
+                boolean hasSet = table.getNumberOfTokensOfPlayer(id) == 3;
                 if (hasSet) {
                     try {
                         semaphore.acquire();
-                        if(dealer.isSetValid(this.id)){
+                        if (dealer.isSetValid(this.id)) {
                             point();
-                        }
-                        else {
+                        } else {
                             penalty();
                         }
+                    } catch (InterruptedException ignored) {
                     }
-                    catch (InterruptedException ignored) {}
                     semaphore.release();
                 }
             }
         }
         // Try to stop thread in case of aiThread
-        if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
+        if (!human) try {
+            aiThread.join();
+        } catch (InterruptedException ignored) {
+        }
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
 
@@ -206,16 +215,18 @@ public class Player implements Runnable {
 
     /**
      * Freezing a player for a given time.
+     *
      * @param time - the time to freeze this player
      */
-    private void freezePlayer(long time){
+    private void freezePlayer(long time) {
         // We update the freeze time in the ui for the relevant player
-        env.ui.setFreeze(this.id,time);
+        env.ui.setFreeze(this.id, time);
         // As long as time not over - sleep for the defined beat and then update the remain time
         while (time > 0) {
             try {
                 Thread.sleep(Player.BEAT_TIME);
-            } catch (InterruptedException ignored) {}
+            } catch (InterruptedException ignored) {
+            }
             time -= Player.BEAT_TIME;
             env.ui.setFreeze(this.id, time);
         }
