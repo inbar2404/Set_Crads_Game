@@ -118,7 +118,7 @@ public class Player implements Runnable {
             try {
                 // The player thread waits until he has action to perform
                 action = this.actions.take();
-            } catch (InterruptedException ignored) {
+            } catch (InterruptedException e) {
             }
             // Execute the action - rather is it placing or removing
             if (table.canPlaceToken(id, action)) {
@@ -185,7 +185,8 @@ public class Player implements Runnable {
      */
     public void terminate() {
         this.terminate = true;
-        Thread.currentThread().interrupt();
+        env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
+        playerThread.interrupt();
     }
 
     /**
