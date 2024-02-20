@@ -183,7 +183,7 @@ public class Dealer implements Runnable {
     /**
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
-    private synchronized void sleepUntilWokenOrTimeout() {
+    private void sleepUntilWokenOrTimeout() {
         // The thread sleeps until we need to update countdown
         try {
             Thread.sleep(ALMOST_SECOND_IN_MILLIS);
