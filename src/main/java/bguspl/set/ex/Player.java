@@ -115,7 +115,12 @@ public class Player implements Runnable {
         while (!terminate) {
             // We will try to execute the user's actions
             if (!this.actions.isEmpty()) {
-                int action = this.actions.poll();
+                int action = 0;
+                try {
+                    // The player thread waits until he has action to perform
+                    action = this.actions.take();
+                } catch (InterruptedException ignored) {
+                }
                 // Execute the action - rather is it placing or removing
                 if (table.canPlaceToken(id, action)) {
                     {
