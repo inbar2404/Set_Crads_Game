@@ -51,7 +51,6 @@ public class Dealer implements Runnable {
      */
     private final long ALMOST_SECOND_IN_MILLIS = 985;
 
-
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
@@ -184,10 +183,12 @@ public class Dealer implements Runnable {
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
     private void sleepUntilWokenOrTimeout() {
-        // The thread sleeps until we need to update countdown
-        try {
-            Thread.sleep(ALMOST_SECOND_IN_MILLIS);
-        } catch (InterruptedException ignored) {
+        // The thread waits until we need to update countdown , or to check set. We must synchronize when waiting
+        synchronized (this) {
+            try {
+                this.wait(ALMOST_SECOND_IN_MILLIS);
+            } catch (InterruptedException ignored) {
+            }
         }
     }
 
@@ -250,7 +251,7 @@ public class Dealer implements Runnable {
      * @param id - the player id number.
      * @return - rather the set is valid or not.
      */
-    public boolean isSetValid(int id) {
+    public void isSetValid(int id) {
         int[] cards = table.getPlayerCards(id);
         boolean isSetValid = env.util.testSet(cards);
         if (isSetValid) {
@@ -258,8 +259,23 @@ public class Dealer implements Runnable {
             for (int card : cards) {
                 this.slotsToRemove.add(table.cardToSlot[card]);
             }
+            // Remove the set cards and give point to the player
+            removeCardsFromTable();
+            players[id].point();
+            // Place new cards
+            placeCardsOnTable();
+        } else {
+            // If the set still exists on the table - for avoiding check sets found at same time.
+            if (!(cards.length == 0)) {
+                players[id].penalty();
+                for (int card : cards) {
+                    // Remove the illegal set tokens
+                    if (table.canRemoveToken(id, table.cardToSlot[card])) {
+                        this.table.removeToken(id, table.cardToSlot[card]);
+                    }
+                }
+            }
         }
-        return isSetValid;
     }
 
     /**

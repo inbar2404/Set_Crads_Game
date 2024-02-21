@@ -63,7 +63,7 @@ public class Player implements Runnable {
     /**
      * We use semaphore in order to implement the wait & notify mechanism
      */
-    private Semaphore semaphore;
+    private Semaphore playersWaitingForSetCheckSemaphore;
 
     /**
      * User should have a queue of his actions to execute with his tokens.
@@ -74,6 +74,11 @@ public class Player implements Runnable {
      * The main thread that handle the game, the "dealer".
      */
     private Dealer dealer;
+
+    /**
+     * A flag indicating if the player thread is available.
+     */
+    private boolean isPlayerWokenUp = true;
 
     /**
      * The class constructor.
@@ -100,7 +105,7 @@ public class Player implements Runnable {
      * @param semaphore - The semaphore object.
      */
     public void setSemaphore(Semaphore semaphore) {
-        this.semaphore = semaphore;
+        this.playersWaitingForSetCheckSemaphore = semaphore;
     }
 
     /**
@@ -137,20 +142,18 @@ public class Player implements Runnable {
             }
             // In case of 3 tokens that are placed on deck - we will check if we have a set
             boolean hasSet = table.getNumberOfTokensOfPlayer(id) == 3;
-            // TODO: Meni says it is not good like that - use notify instead and pass all logic to the dealer
             if (hasSet) {
                 try {
-                    semaphore.acquire();
-                    if (dealer.isSetValid(this.id)) {
-                        point();
-                    } else {
-                        penalty();
+                    playersWaitingForSetCheckSemaphore.acquire();
+                    // Notify the dealer to wake him up' to check the set. We must synchronize here.
+                    synchronized (this) {
+                        notifyAll();
                     }
+                    // Call the dealer function to check the set
+                    dealer.isSetValid(this.id);
                 } catch (InterruptedException ignored) {
                 }
-                semaphore.release();
             }
-
         }
         // Try to stop thread in case of aiThread
         if (!human) try {
@@ -196,7 +199,8 @@ public class Player implements Runnable {
      */
     // TODO: Consider later how to handle the case of the "else" - only for aiThread
     public void keyPressed(int slot) {
-        if (this.actions.size() < this.env.config.featureSize) {
+        // Handle the key pressed only when the player is not in freeze
+        if (this.actions.size() < this.env.config.featureSize & isPlayerWokenUp) {
             this.actions.add(slot);
         }
     }
@@ -208,6 +212,8 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
+        // Release the lock on the dealer
+        playersWaitingForSetCheckSemaphore.release();
         freezePlayer(this.env.config.pointFreezeMillis);
         env.ui.setScore(id, ++score);
     }
@@ -216,6 +222,8 @@ public class Player implements Runnable {
      * Penalize a player and perform other related actions.
      */
     public void penalty() {
+        // Release the lock on the dealer
+        playersWaitingForSetCheckSemaphore.release();
         freezePlayer(this.env.config.penaltyFreezeMillis);
     }
 
@@ -225,20 +233,23 @@ public class Player implements Runnable {
      * @param time - the time to freeze this player
      */
     private void freezePlayer(long time) {
-        // TODO while player is freeze, it's still getting his actions and not ignoring them, and then when finished freezing, the table updates
-        // For example: When player put 3 tokens that are not set, he can press on the slots and it will remove it when he finish his freeze, instead of ignore them.
 
         // We update the freeze time in the ui for the relevant player
         env.ui.setFreeze(this.id, time);
+        // The player sleeps and can wake up only for updating timer, not for getting new key presses
+        isPlayerWokenUp = false;
         // As long as time not over - sleep for the defined beat and then update the remain time
         while (time > 0) {
             try {
-                Thread.sleep(Player.BEAT_TIME);
+                playerThread.sleep(Player.BEAT_TIME);
             } catch (InterruptedException ignored) {
             }
             time -= Player.BEAT_TIME;
             env.ui.setFreeze(this.id, time);
         }
+        // Finish the freeze
+        isPlayerWokenUp = true;
+
     }
 
     public int score() {

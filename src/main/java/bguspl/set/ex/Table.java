@@ -296,7 +296,13 @@ public class Table {
      * @return - All cards on table in linked list format.
      */
     public LinkedList<Integer> getAllCards() {
-        return new LinkedList<>(Arrays.asList(this.slotToCard).subList(0, slotToCard.length));
+        LinkedList<Integer> allCardsList = new LinkedList<>();
+        for (Integer card : slotToCard) {
+            if (card != null) {
+                allCardsList.add(card);
+            }
+        }
+        return allCardsList;
     }
 }
 
