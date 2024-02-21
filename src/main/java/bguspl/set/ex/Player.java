@@ -145,9 +145,9 @@ public class Player implements Runnable {
             if (hasSet) {
                 try {
                     playersWaitingForSetCheckSemaphore.acquire();
-                    // Notify the dealer to wake him up' to check the set. We must synchronize here.
-                    synchronized (this) {
-                        notifyAll();
+                    // Notify the dealer to wake him up to check the set. We must synchronize here.
+                    synchronized (dealer) {
+                        dealer.notifyAll();
                     }
                     // Call the dealer function to check the set
                     dealer.isSetValid(this.id);
