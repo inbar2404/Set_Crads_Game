@@ -80,6 +80,8 @@ public class Player implements Runnable {
      */
     private boolean isPlayerWokenUp = true;
 
+    final long AI_SLEEP_TIME;
+
     /**
      * The class constructor.
      *
@@ -97,6 +99,7 @@ public class Player implements Runnable {
         this.terminate = false; // We want to init it to False
         this.actions = new LinkedBlockingQueue<Integer>(env.config.featureSize); // Number of actions should be equals to size of a set
         this.dealer = dealer;
+        AI_SLEEP_TIME = 1;
     }
 
     /**
@@ -179,7 +182,7 @@ public class Player implements Runnable {
                 int randomSlot = random.nextInt(env.config.tableSize);
                 keyPressed(randomSlot);
                 try {
-                    Thread.currentThread().sleep(1);
+                    Thread.currentThread().sleep(AI_SLEEP_TIME);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
