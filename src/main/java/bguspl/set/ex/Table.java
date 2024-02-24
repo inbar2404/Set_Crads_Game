@@ -2,13 +2,10 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
-import java.util.HashMap;
+import java.util.Arrays;
 
 /**
  * This class contains the data that is visible to the player.
@@ -277,10 +274,18 @@ public class Table {
      * @param cardsToPlace - List of cards to place on the empty slots on the table.
      */
     public void placeCardsOnTable(LinkedList<Integer> cardsToPlace) {
-        for (int slot = 0; slot < slotToCard.length && !cardsToPlace.isEmpty(); slot++) {
+        // Create a LinkedList to store numbers from 0 to 11
+        LinkedList<Integer> randomSlots = new LinkedList<>();
+        for (int slotNum = 0; slotNum < slotToCard.length; slotNum++) {
+            randomSlots.add(slotNum);
+        }
+        // Shuffle the slots
+        Collections.shuffle(randomSlots);
+
+        for (int slot = 0; slot < randomSlots.size() && !cardsToPlace.isEmpty(); slot++) {
             // Run through all slots and place the cards from the list on the empty ones , while there are new cards to place
-            if (slotToCard[slot] == null) {
-                placeCard(cardsToPlace.removeLast(), slot);
+            if (slotToCard[randomSlots.get(slot)] == null) {
+                placeCard(cardsToPlace.removeLast(), randomSlots.get(slot));
             }
         }
     }

@@ -208,7 +208,6 @@ public class Dealer implements Runnable {
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
-
         LinkedList<Integer> removedCardsList = new LinkedList<>();
         // Synchronize on the table while removing the cards.
         try {
