@@ -56,7 +56,6 @@ public class Dealer implements Runnable {
      */
     private final int MAX_SETS_FOR_RESHUFFLE = 1;
 
-
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
