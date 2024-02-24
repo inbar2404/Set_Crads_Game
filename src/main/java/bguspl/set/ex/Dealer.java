@@ -141,12 +141,7 @@ public class Dealer implements Runnable {
             slotsToRemove.clear();
         } else if (env.util.findSets(table.getAllCards(), MAX_SETS_FOR_RESHUFFLE).isEmpty()) {
             // If there are no sets on table, synchronize on the table and remove all cards.
-            try {
-                table.tableSemaphore.acquire();
-            } catch (InterruptedException ignored) {
-            }
             removeAllCardsFromTable();
-            table.tableSemaphore.release();
         }
     }
 
@@ -213,6 +208,7 @@ public class Dealer implements Runnable {
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
+
         LinkedList<Integer> removedCardsList = new LinkedList<>();
         // Synchronize on the table while removing the cards.
         try {
@@ -223,6 +219,10 @@ public class Dealer implements Runnable {
         table.tableSemaphore.release();
         // Merging deck and removedCardsList.
         deck.addAll(removedCardsList);
+        if (env.util.findSets(deck, MAX_SETS_FOR_RESHUFFLE).isEmpty()) {
+            // Terminate game if no sets on deck
+            terminate();
+        }
     }
 
     /**
@@ -273,7 +273,7 @@ public class Dealer implements Runnable {
                 players[id].penalty();
                 for (int card : cards) {
                     // Remove the illegal set tokens
-                    if (table.canRemoveToken(id, table.cardToSlot[card])) {
+                    if ((table.cardToSlot[card] != null) && table.canRemoveToken(id, table.cardToSlot[card])) {
                         this.table.removeToken(id, table.cardToSlot[card]);
                     }
                 }

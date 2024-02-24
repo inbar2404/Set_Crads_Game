@@ -209,7 +209,7 @@ public class Table {
      */
     public boolean canRemoveToken(int player, int slot) {
         // True if it exists ,  there is a card which it's placed on
-        return existingTokenPlace(player, slot) && (slotToCard[slot] != null);
+        return (slotToCard[slot] != null) && existingTokenPlace(player, slot);
     }
 
     /**
