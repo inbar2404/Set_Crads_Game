@@ -38,10 +38,15 @@ public class Table {
     protected HashMap<Integer, LinkedList<Integer>> playersTokensMap;
 
     /**
+     * The number of threads aloud to work in same time for the semaphore.
+     */
+    private final int SEMAPHORE_PERMITS;
+
+    /**
      * Semaphore on the table, for blocking player threads to use him when performing dealer's actions.
      * It's protected because we need the dealer and player to use it.
      */
-    protected Semaphore tableSemaphore = new Semaphore(1, true);
+    protected Semaphore tableSemaphore;
 
     /**
      * Constructor for testing.
@@ -51,7 +56,6 @@ public class Table {
      * @param cardToSlot - mapping between a card and the slot it is in (null if none).
      */
     public Table(Env env, Integer[] slotToCard, Integer[] cardToSlot) {
-
         this.env = env;
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
@@ -60,6 +64,8 @@ public class Table {
         for (int playerID = 0; playerID < env.config.players; playerID++) {
             this.playersTokensMap.put(playerID, new LinkedList<Integer>());
         }
+        this.SEMAPHORE_PERMITS = 1;
+        this.tableSemaphore = new Semaphore(this.SEMAPHORE_PERMITS, true);
     }
 
     /**

@@ -51,6 +51,12 @@ public class Dealer implements Runnable {
      */
     private final long ALMOST_SECOND_IN_MILLIS = 985;
 
+    /**
+     * Used for dealer to know when game ends or no sets on table, on function findSets.
+     */
+    private final int MAX_SETS_FOR_RESHUFFLE = 1;
+
+
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
@@ -118,16 +124,6 @@ public class Dealer implements Runnable {
      * Checks cards should be removed from the table and removes them.
      */
     private void removeCardsFromTable() {
-
-        if (env.util.findSets(table.getAllCards(), 1).isEmpty()) {
-            // If there are no sets on table, synchronize on the table and remove all cards.
-            try {
-                table.tableSemaphore.acquire();
-            } catch (InterruptedException ignored) {
-            }
-            removeAllCardsFromTable();
-            table.tableSemaphore.release();
-        }
         if (!slotsToRemove.isEmpty()) {
             // If there is a set found to remove, synchronize on the table and remove it.
             try {
@@ -142,9 +138,17 @@ public class Dealer implements Runnable {
                 }
             }
             table.tableSemaphore.release();
+            // Clears the list when finished removing the cards
+            slotsToRemove.clear();
+        } else if (env.util.findSets(table.getAllCards(), MAX_SETS_FOR_RESHUFFLE).isEmpty()) {
+            // If there are no sets on table, synchronize on the table and remove all cards.
+            try {
+                table.tableSemaphore.acquire();
+            } catch (InterruptedException ignored) {
+            }
+            removeAllCardsFromTable();
+            table.tableSemaphore.release();
         }
-        // Clears the list when finished removing the cards
-        slotsToRemove.clear();
     }
 
     /**
@@ -164,11 +168,10 @@ public class Dealer implements Runnable {
             // Synchronize on the table object while placing new cards on table
             try {
                 table.tableSemaphore.acquire();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                // Call the table function to update the data and ui.
+                table.placeCardsOnTable(cardsToPlace);
+            } catch (InterruptedException ignored) {
             }
-            // Call the table function to update the data and ui.
-            table.placeCardsOnTable(cardsToPlace);
 
             table.tableSemaphore.release();
             // Display hints if needed.
@@ -211,13 +214,13 @@ public class Dealer implements Runnable {
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
+        LinkedList<Integer> removedCardsList = new LinkedList<>();
         // Synchronize on the table while removing the cards.
         try {
             table.tableSemaphore.acquire();
+            removedCardsList = table.removeAllCardsFromTable();
         } catch (InterruptedException ignored) {
         }
-
-        LinkedList<Integer> removedCardsList = table.removeAllCardsFromTable();
         table.tableSemaphore.release();
         // Merging deck and removedCardsList.
         deck.addAll(removedCardsList);
@@ -254,6 +257,7 @@ public class Dealer implements Runnable {
     public void isSetValid(int id) {
         int[] cards = table.getPlayerCards(id);
         boolean isSetValid = env.util.testSet(cards);
+        // TODO : Inbar try to implement better
         if (isSetValid) {
             // If the set is valid - we need to remove the cards, so it updates the slotsToRemove list to the relevant slots.
             for (int card : cards) {
@@ -276,6 +280,7 @@ public class Dealer implements Runnable {
                 }
             }
         }
+
     }
 
     /**

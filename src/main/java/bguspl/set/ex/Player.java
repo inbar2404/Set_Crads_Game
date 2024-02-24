@@ -126,20 +126,19 @@ public class Player implements Runnable {
             } catch (InterruptedException e) {
             }
             // Execute the action - rather is it placing or removing
-            if (table.canPlaceToken(id, action)) {
-                {
-                    // Try to lock the table to put the token when allowed, and with no interruptions from other threads
-                    if (table.tableSemaphore.tryAcquire()) {
-                        table.placeToken(id, action);
-                        table.tableSemaphore.release();
+            try {
+                table.tableSemaphore.acquire();
+                if (table.canPlaceToken(id, action)) {
+                    table.placeToken(id, action);
+                } else {
+                    // Removes the token if possible
+                    if ((table.canRemoveToken(id, action))) {
+                        table.removeToken(id, action);
                     }
                 }
-            } else {
-                // Removes the token if possible
-                if ((table.canRemoveToken(id, action))) {
-                    table.removeToken(id, action);
-                }
+            } catch (InterruptedException ignored) {
             }
+            table.tableSemaphore.release();
             // In case of 3 tokens that are placed on deck - we will check if we have a set
             boolean hasSet = table.getNumberOfTokensOfPlayer(id) == 3;
             if (hasSet) {
@@ -158,9 +157,11 @@ public class Player implements Runnable {
         // Try to stop thread in case of aiThread
         if (!human) try {
             aiThread.join();
-        } catch (InterruptedException ignored) {
+        } catch (
+                InterruptedException ignored) {
         }
-        env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
+        env.logger.info("thread " + Thread.currentThread().
+                getName() + " terminated.");
     }
 
     /**
@@ -177,6 +178,11 @@ public class Player implements Runnable {
                 Random random = new Random();
                 int randomSlot = random.nextInt(env.config.tableSize);
                 keyPressed(randomSlot);
+                try {
+                    Thread.currentThread().sleep(1);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
@@ -197,7 +203,7 @@ public class Player implements Runnable {
      *
      * @param slot - the slot corresponding to the key pressed.
      */
-    // TODO: Consider later how to handle the case of the "else" - only for aiThread
+// TODO: Consider later how to handle the case of the "else" - only for aiThread
     public void keyPressed(int slot) {
         // Handle the key pressed only when the player is not in freeze
         if (this.actions.size() < this.env.config.featureSize & isPlayerWokenUp) {
