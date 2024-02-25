@@ -1,6 +1,7 @@
 package bguspl.set.ex;
 
 import bguspl.set.Env;
+
 import java.util.Random;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -62,7 +63,7 @@ public class Player implements Runnable {
     /**
      * We use semaphore in order to implement the wait & notify mechanism
      */
-    private Semaphore semaphore;
+    private Semaphore playersWaitingForSetCheckSemaphore;
 
     /**
      * User should have a queue of his actions to execute with his tokens.
@@ -73,6 +74,13 @@ public class Player implements Runnable {
      * The main thread that handle the game, the "dealer".
      */
     private Dealer dealer;
+
+    /**
+     * A flag indicating if the player thread is available.
+     */
+    private boolean isPlayerWokenUp = true;
+
+    final long AI_SLEEP_TIME;
 
     /**
      * The class constructor.
@@ -91,15 +99,16 @@ public class Player implements Runnable {
         this.terminate = false; // We want to init it to False
         this.actions = new LinkedBlockingQueue<Integer>(env.config.featureSize); // Number of actions should be equals to size of a set
         this.dealer = dealer;
+        AI_SLEEP_TIME = 1;
     }
 
     /**
      * A setter for the semaphore object.
+     *
      * @param semaphore - The semaphore object.
      */
-    public void setSemaphore(Semaphore semaphore)
-    {
-        this.semaphore = semaphore;
+    public void setSemaphore(Semaphore semaphore) {
+        this.playersWaitingForSetCheckSemaphore = semaphore;
     }
 
     /**
@@ -113,36 +122,49 @@ public class Player implements Runnable {
 
         while (!terminate) {
             // We will try to execute the user's actions
-            if (this.actions.size() > 0)
-            {
-                int action = this.actions.poll();
-                // Execute the action - rather is it placing or removing
-                if(table.canPlaceToken(id, action)) {
+            int action = 0;
+            try {
+                // The player thread waits until he has action to perform
+                action = this.actions.take();
+            } catch (InterruptedException e) {
+            }
+            // Execute the action - rather is it placing or removing
+            try {
+                table.tableSemaphore.acquire();
+                if (table.canPlaceToken(id, action)) {
                     table.placeToken(id, action);
-                }
-                else if (table.canRemoveToken(id, action)) {
-                    table.removeToken(id, action);
-                }
-                // In case of 3 tokens that are placed on deck - we will check if we have a set
-                boolean hasSet = table.getNumberOfTokensOfPlayer(id)==3;
-                if (hasSet) {
-                    try {
-                        semaphore.acquire();
-                        if(dealer.isSetValid(this.id)){
-                            point();
-                        }
-                        else {
-                            penalty();
-                        }
+                } else {
+                    // Removes the token if possible
+                    if ((table.canRemoveToken(id, action))) {
+                        table.removeToken(id, action);
                     }
-                    catch (InterruptedException ignored) {}
-                    semaphore.release();
+                }
+            } catch (InterruptedException ignored) {
+            }
+            table.tableSemaphore.release();
+            // In case of 3 tokens that are placed on deck - we will check if we have a set
+            boolean hasSet = table.getNumberOfTokensOfPlayer(id) == 3;
+            if (hasSet) {
+                try {
+                    playersWaitingForSetCheckSemaphore.acquire();
+                    // Notify the dealer to wake him up to check the set. We must synchronize here.
+                    synchronized (dealer) {
+                        dealer.notifyAll();
+                    }
+                    // Call the dealer function to check the set
+                    dealer.isSetValid(this.id);
+                } catch (InterruptedException ignored) {
                 }
             }
         }
         // Try to stop thread in case of aiThread
-        if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
-        env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
+        if (!human) try {
+            aiThread.join();
+        } catch (
+                InterruptedException ignored) {
+        }
+        env.logger.info("thread " + Thread.currentThread().
+                getName() + " terminated.");
     }
 
     /**
@@ -159,6 +181,11 @@ public class Player implements Runnable {
                 Random random = new Random();
                 int randomSlot = random.nextInt(env.config.tableSize);
                 keyPressed(randomSlot);
+                try {
+                    Thread.currentThread().sleep(AI_SLEEP_TIME);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
@@ -170,7 +197,8 @@ public class Player implements Runnable {
      */
     public void terminate() {
         this.terminate = true;
-        Thread.currentThread().interrupt();
+        env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
+        playerThread.interrupt();
     }
 
     /**
@@ -178,9 +206,10 @@ public class Player implements Runnable {
      *
      * @param slot - the slot corresponding to the key pressed.
      */
-    // TODO: Consider later how to handle the case of the "else"
+// TODO: Consider later how to handle the case of the "else" - only for aiThread
     public void keyPressed(int slot) {
-        if (this.actions.size() < this.env.config.featureSize) {
+        // Handle the key pressed only when the player is not in freeze
+        if (this.actions.size() < this.env.config.featureSize & isPlayerWokenUp) {
             this.actions.add(slot);
         }
     }
@@ -192,6 +221,8 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
+        // Release the lock on the dealer
+        playersWaitingForSetCheckSemaphore.release();
         freezePlayer(this.env.config.pointFreezeMillis);
         env.ui.setScore(id, ++score);
     }
@@ -200,24 +231,33 @@ public class Player implements Runnable {
      * Penalize a player and perform other related actions.
      */
     public void penalty() {
+        // Release the lock on the dealer
+        playersWaitingForSetCheckSemaphore.release();
         freezePlayer(this.env.config.penaltyFreezeMillis);
     }
 
     /**
      * Freezing a player for a given time.
+     *
      * @param time - the time to freeze this player
      */
-    private void freezePlayer(long time){
+    private void freezePlayer(long time) {
         // We update the freeze time in the ui for the relevant player
-        env.ui.setFreeze(this.id,time);
+        env.ui.setFreeze(this.id, time);
+        // The player sleeps and can wake up only for updating timer, not for getting new key presses
+        isPlayerWokenUp = false;
         // As long as time not over - sleep for the defined beat and then update the remain time
         while (time > 0) {
             try {
-                Thread.sleep(Player.BEAT_TIME);
-            } catch (InterruptedException ignored) {}
+                playerThread.sleep(Player.BEAT_TIME);
+            } catch (InterruptedException ignored) {
+            }
             time -= Player.BEAT_TIME;
             env.ui.setFreeze(this.id, time);
         }
+        // Finish the freeze
+        isPlayerWokenUp = true;
+
     }
 
     public int score() {
