@@ -256,6 +256,7 @@ public class Table {
      * @return - A list of the removed cards.
      */
     public LinkedList<Integer> removeAllCardsFromTable() {
+        // TODO: remove randomly from slots
         LinkedList<Integer> removedCardsList = new LinkedList<>();
 
         for (int slot = 0; slot < slotToCard.length; slot++) {
@@ -283,9 +284,11 @@ public class Table {
         Collections.shuffle(randomSlots);
 
         for (int slot = 0; slot < randomSlots.size() && !cardsToPlace.isEmpty(); slot++) {
-            // Run through all slots and place the cards from the list on the empty ones , while there are new cards to place
-            if (slotToCard[randomSlots.get(slot)] == null) {
-                placeCard(cardsToPlace.removeLast(), randomSlots.get(slot));
+            // Run through all slots and place the cards from the list on the empty ones , while there are new cards to place. synchronize to avoid null ptr
+            synchronized (this) {
+                if (slotToCard[randomSlots.get(slot)] == null) {
+                    placeCard(cardsToPlace.removeLast(), randomSlots.get(slot));
+                }
             }
         }
     }

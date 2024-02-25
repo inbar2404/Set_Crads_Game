@@ -242,7 +242,6 @@ public class Player implements Runnable {
      * @param time - the time to freeze this player
      */
     private void freezePlayer(long time) {
-
         // We update the freeze time in the ui for the relevant player
         env.ui.setFreeze(this.id, time);
         // The player sleeps and can wake up only for updating timer, not for getting new key presses
