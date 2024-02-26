@@ -111,13 +111,8 @@ public class Dealer implements Runnable {
     public void terminate() {
         // Iterating reverse order in order to terminate all threads gracefully
         for (int playerNumber = players.length - 1; playerNumber >= 0; playerNumber--) {
+            env.logger.info("playerThread " + players[playerNumber].playerThread.getName() + " terminated.");
             players[playerNumber].terminate();
-            while (players[playerNumber].playerThread.isAlive()) {
-                try {
-                    players[playerNumber].playerThread.join();
-                } catch (InterruptedException ignored) {
-                }
-            }
         }
         this.terminate = true;
     }

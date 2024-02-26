@@ -160,10 +160,9 @@ public class Player implements Runnable {
         // Try to stop thread in case of aiThread
         if (!human) try {
             aiThread.join();
-        } catch (
-                InterruptedException ignored) {
+        } catch (InterruptedException ignored) {
         }
-        env.logger.info("thread " + Thread.currentThread().
+        env.logger.info("ai thread " + Thread.currentThread().
                 getName() + " terminated.");
     }
 
@@ -197,7 +196,6 @@ public class Player implements Runnable {
      */
     public void terminate() {
         this.terminate = true;
-        env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         playerThread.interrupt();
     }
 
