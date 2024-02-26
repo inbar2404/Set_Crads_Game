@@ -47,9 +47,20 @@ public class Dealer implements Runnable {
     private LinkedList<Integer> slotsToRemove = new LinkedList<>();
 
     /**
+     * Define the required beat (time "jumps") of the thread.
+     */
+    private long currentBeat;
+
+    /**
      * Represents almost a second in millis, for waking up the dealer for timer countdown update.
      */
+    // TODO: Ask Bar why almost second and not exactly second?
     private final long ALMOST_SECOND_IN_MILLIS = 985;
+
+    /**
+     * Represent the "jumps" (beat) we want to have when it is in the warn zone (last 5s).
+     */
+    private final long WARN_BEAT_TIME = 10;
 
     /**
      * Used for dealer to know when game ends or no sets on table, on function findSets.
@@ -60,6 +71,7 @@ public class Dealer implements Runnable {
         this.env = env;
         this.table = table;
         this.players = players;
+        this.currentBeat = ALMOST_SECOND_IN_MILLIS;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
     }
 
@@ -180,7 +192,7 @@ public class Dealer implements Runnable {
         // The thread waits until we need to update countdown , or to check set. We must synchronize when waiting
         synchronized (this) {
             try {
-                this.wait(ALMOST_SECOND_IN_MILLIS);
+                this.wait(currentBeat);
             } catch (InterruptedException ignored) {
             }
         }
@@ -199,8 +211,14 @@ public class Dealer implements Runnable {
             shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
         }
 
-        if(timeLeft<0){
-            timeLeft=0;
+        if (shouldWarn) {
+            currentBeat = WARN_BEAT_TIME;
+        } else {
+            currentBeat = ALMOST_SECOND_IN_MILLIS;
+        }
+
+        if (timeLeft < 0) {
+            timeLeft = 0;
         }
         env.ui.setCountdown(timeLeft, shouldWarn);
     }
