@@ -19,6 +19,7 @@ It is not really needed tests because constants are well-known concept.
 --------------------
 
 2. Terminating all threads (that you created) gracefully and in reverse order to the order they were created in.
+
 Implementation in our code - when creating the code we iterate over the players array from the 0 index to the last index
 (which in this point and next the order of the players in this array won't be changed), when terminating the threads we
 iterate in a reverse order (from last index to 0 index).
@@ -32,12 +33,27 @@ config.turnTimeoutMillis < 0: display nothing.
 config.turnTimeoutMillis = 0: display a timer since the last action (reshuffle or set collected).
 Note: in modes without a countdown timer the dealer must ensure there is always at least one legal set on the table.
 
-We are not entitled to this bonus.
-
+Implementation in our code - We added a check of this field value- if it's < 0, we ignore and display nothing.
+If it's = 0 we increase the timer until set found or reshuffle needed, and then we set time elapsed to 0 again.
+It is use in timerLoop function, to not finish and reshuffle when timeout happens like regular config.
+Also, we use it in updateTimerDisplay function,
+so when this function called it increases the elapsed time, by adding the elapsed time from last time update. It also resets the timer when needed.
+We tested it by running the game with those configs, and another combinations of configs,
+and by reading and comparing logs to expected results.
 --------------------
 
 4. Making sure that the threads do not wake up unless some actual job needs to be done (e.g., a value needs to be
 changed on the display, key input needs to be handled, etc.) and the only threads created by you are:
 1 thread per player + 1 additional thread for non-human players.
 
-We are not entitled to this bonus.
+Implementation in our code - First, we make new thread for any player, and another one for AI only if needed, and that's it.
+In our program, the thread's wake up only when needed.
+The dealer - wakes up only to update the countdown, or to check if set is valid.
+We did it with wait and notify mechanism. He waits until a notify from player to check set, or when need to update clock.
+The player - we implemented it by blocking queue for his actions.
+The player waits until there is a action to do, so he sleeps while he doesn't need to do something.
+Also while freezing he sleeps, and wakes up only for updating the freeze timer.
+It is use in dealer's sleepUntilWokenOrTimeout function, and on player's run - when getting another actions ,and freeze function.
+We tested it by running the game with different configs,
+and by reading and comparing logs to expected results.
+

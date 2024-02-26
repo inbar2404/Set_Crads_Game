@@ -85,7 +85,7 @@ public class Dealer implements Runnable {
      * The inner loop of the dealer thread that runs as long as the countdown did not time out.
      */
     private void timerLoop() {
-        while (!terminate && System.currentTimeMillis() < reshuffleTime) {
+        while (!terminate && (System.currentTimeMillis() < reshuffleTime || env.config.turnTimeoutMillis == 0)) {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
             removeCardsFromTable();
@@ -193,13 +193,25 @@ public class Dealer implements Runnable {
     private void updateTimerDisplay(boolean reset) {
         boolean shouldWarn = false;
         long timeLeft = env.config.turnTimeoutMillis;
-        if (reset) {
-            reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
-        } else {
-            timeLeft = reshuffleTime - System.currentTimeMillis();
-            shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
+        if (timeLeft > 0) {
+            if (reset) {
+                reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+            } else {
+                timeLeft = reshuffleTime - System.currentTimeMillis();
+                shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
+            }
+            env.ui.setCountdown(timeLeft, shouldWarn);
+        } else if (timeLeft == 0) {
+            if (reset) {
+                // If time reset show 0 and restart the clock to current dates
+                env.ui.setElapsed(timeLeft);
+                reshuffleTime = System.currentTimeMillis();
+            } else {
+                // The time elapsed from last reset
+                env.ui.setElapsed((System.currentTimeMillis() - reshuffleTime));
+            }
         }
-        env.ui.setCountdown(timeLeft, shouldWarn);
+        // If time left<0 display nothing
     }
 
     /**
