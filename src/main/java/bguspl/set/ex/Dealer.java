@@ -192,25 +192,17 @@ public class Dealer implements Runnable {
     private void updateTimerDisplay(boolean reset) {
         boolean shouldWarn = false;
         long timeLeft = env.config.turnTimeoutMillis;
-        if (timeLeft > 0) {
-            if (reset) {
-                reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
-            } else {
-                timeLeft = reshuffleTime - System.currentTimeMillis();
-                shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
-            }
-            env.ui.setCountdown(timeLeft, shouldWarn);
-        } else if (timeLeft == 0) {
-            if (reset) {
-                // If time reset show 0 and restart the clock to current dates
-                env.ui.setElapsed(timeLeft);
-                reshuffleTime = System.currentTimeMillis();
-            } else {
-                // The time elapsed from last reset
-                env.ui.setElapsed((System.currentTimeMillis() - reshuffleTime));
-            }
+        if (reset) {
+            reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+        } else {
+            timeLeft = reshuffleTime - System.currentTimeMillis();
+            shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
         }
-        // If time left<0 display nothing
+
+        if(timeLeft<0){
+            timeLeft=0;
+        }
+        env.ui.setCountdown(timeLeft, shouldWarn);
     }
 
     /**
