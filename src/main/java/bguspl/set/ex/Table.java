@@ -256,7 +256,6 @@ public class Table {
      * @return - A list of the removed cards.
      */
     public LinkedList<Integer> removeAllCardsFromTable() {
-        // TODO: remove randomly from slots
         LinkedList<Integer> removedCardsList = new LinkedList<>();
 
         for (int slot = 0; slot < slotToCard.length; slot++) {

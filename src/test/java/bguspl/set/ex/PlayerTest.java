@@ -73,6 +73,4 @@ class PlayerTest {
         player.penalty();
         assertEquals(expectedScore, player.score());
     }
-
-    // TODO: Add more required uts
 }

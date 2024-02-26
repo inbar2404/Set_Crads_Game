@@ -129,7 +129,6 @@ public class Dealer implements Runnable {
                 table.tableSemaphore.acquire();
             } catch (InterruptedException ignored) {
             }
-            // TODO: remove randomly from slots - maybe add a function removeCards in Table class and call it
             for (int slot : slotsToRemove) {
                 // Remove the cards from the slots on the table.
                 this.table.removeCard(slot);
