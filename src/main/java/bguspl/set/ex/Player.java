@@ -151,8 +151,16 @@ public class Player implements Runnable {
                     synchronized (dealer) {
                         dealer.notifyAll();
                     }
-                    // Call the dealer function to check the set
-                    dealer.isSetValid(this.id);
+                    int[] cards = table.getPlayerCards(id);
+                    boolean validSet = dealer.isSetValid(cards);
+                    if(validSet){
+                        point();
+                        dealer.replaceCards(cards);
+                    }
+                    else {
+                        penalty();
+                        dealer.removeIllegalSetTokens(cards);
+                    }
                 } catch (InterruptedException ignored) {
                 }
             }

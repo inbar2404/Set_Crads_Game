@@ -263,56 +263,61 @@ public class Dealer implements Runnable {
     /**
      * Check if the chosen cards of the given player create a valid set.
      *
-     * @param id - the player id number.
+     * @param cards - the player cards of the player we want to check if he has a set.
      * @return - rather the set is valid or not.
      */
-    public void isSetValid(int id) {
-        int[] cards = table.getPlayerCards(id);
-        boolean isSetValid = env.util.testSet(cards);
-        // TODO : Inbar try to implement better
-        if (isSetValid) {
-            // If the set is valid - we need to remove the cards, so it updates the slotsToRemove list to the relevant slots.
-            for (int card : cards) {
-                this.slotsToRemove.add(table.cardToSlot[card]);
-            }
-            // Remove the set cards and give point to the player
-            removeCardsFromTable();
-            players[id].point();
-            // Place new cards
-            placeCardsOnTable();
-        } else {
+    public boolean isSetValid(int[] cards) {
+        return env.util.testSet(cards);
+    }
+
+    /**
+     * Removing the given cards and place other instead.
+     *
+     * @param cards - the given card we want to remove and bring others instead.
+     */
+    public void replaceCards(int[] cards) {
+        // We need to remove the cards, so it updates the slotsToRemove list to the relevant slots.
+        for (int card : cards) {
+            this.slotsToRemove.add(table.cardToSlot[card]);
+        }
+        removeCardsFromTable();
+        placeCardsOnTable();
+    }
+
+    /**
+     * Remove token of illegal set that were placed.
+     *
+     * @param cards - the given cards where illegal tokens were placed.
+     */
+    public void removeIllegalSetTokens(int[] cards) {
             // If the set still exists on the table - for avoiding check sets found at same time.
             if (!(cards.length == 0)) {
-                players[id].penalty();
                 for (int card : cards) {
-                    // Remove the illegal set tokens
-                    if ((table.cardToSlot[card] != null) && table.canRemoveToken(id, table.cardToSlot[card])) {
-                        this.table.removeToken(id, table.cardToSlot[card]);
+                    if (table.cardToSlot[card] != null) {
+                        this.table.removeTokenByCard(card);
                     }
                 }
             }
         }
 
-    }
+        /**
+         * Init and run all players threads.
+         */
+        private void runPlayersThreads () {
+            // The true flag, indicate it is fair Semaphore
+            Semaphore semaphore = new Semaphore(1, true);
+            for (int playerNumber = 0; playerNumber < players.length; playerNumber++) {
+                // We initialize the semaphore here because we want to make sure it is the same one for all players
+                players[playerNumber].setSemaphore(semaphore);
+                Thread playerThread = new Thread(players[playerNumber], env.config.playerNames[playerNumber]);
+                playerThread.start();
+            }
+        }
 
-    /**
-     * Init and run all players threads.
-     */
-    private void runPlayersThreads() {
-        // The true flag, indicate it is fair Semaphore
-        Semaphore semaphore = new Semaphore(1, true);
-        for (int playerNumber = 0; playerNumber < players.length; playerNumber++) {
-            // We initialize the semaphore here because we want to make sure it is the same one for all players
-            players[playerNumber].setSemaphore(semaphore);
-            Thread playerThread = new Thread(players[playerNumber], env.config.playerNames[playerNumber]);
-            playerThread.start();
+        /**
+         * Reshuffles randomly the deck.
+         */
+        private void reshuffleDeck () {
+            Collections.shuffle(deck);
         }
     }
-
-    /**
-     * Reshuffles randomly the deck.
-     */
-    private void reshuffleDeck() {
-        Collections.shuffle(deck);
-    }
-}
