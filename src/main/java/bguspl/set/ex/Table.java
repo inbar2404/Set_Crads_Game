@@ -185,7 +185,7 @@ public class Table {
      *
      * @param player - the player the token belongs to.
      * @param slot   - the slot from which to remove the token.
-     * @return - true iff a token was successfully removed.
+     * @return - true ifF a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
         // Remove the token from the player-to-tokens mapping, and from the ui
@@ -256,7 +256,6 @@ public class Table {
      * @return - A list of the removed cards.
      */
     public LinkedList<Integer> removeAllCardsFromTable() {
-        // TODO: remove randomly from slots
         LinkedList<Integer> removedCardsList = new LinkedList<>();
 
         for (int slot = 0; slot < slotToCard.length; slot++) {

@@ -24,7 +24,8 @@ Implementation in our code - when creating the code we iterate over the players 
 (which in this point and next the order of the players in this array won't be changed), when terminating the threads we
 iterate in a reverse order (from last index to 0 index).
 It is use in the Dealer.java in the runPlayersThreads and terminate functions.
-We tested it ... . (TODO: Complete this part later).
+We tested it by adding los for creating and terminating every player check, and after the executions we check in the
+log's file if indeed it is in the reverse order.
 
 --------------------
 

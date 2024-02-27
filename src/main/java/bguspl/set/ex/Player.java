@@ -143,7 +143,7 @@ public class Player implements Runnable {
             }
             table.tableSemaphore.release();
             // In case of 3 tokens that are placed on deck - we will check if we have a set
-            boolean hasSet = table.getNumberOfTokensOfPlayer(id) == 3;
+            boolean hasSet = table.getNumberOfTokensOfPlayer(id) == env.config.featureSize;
             if (hasSet) {
                 try {
                     playersWaitingForSetCheckSemaphore.acquire();
@@ -151,8 +151,20 @@ public class Player implements Runnable {
                     synchronized (dealer) {
                         dealer.notifyAll();
                     }
-                    // Call the dealer function to check the set
-                    dealer.isSetValid(this.id);
+                    int[] cards = table.getPlayerCards(id);
+                    boolean validSet = dealer.isSetValid(cards);
+                    synchronized (table) {
+                    if (validSet && table.getNumberOfTokensOfPlayer(id) == env.config.featureSize) {
+                            point();
+                            dealer.replaceCards(cards);
+                    }}
+                    if(table.getNumberOfTokensOfPlayer(id) != env.config.featureSize){
+                        playersWaitingForSetCheckSemaphore.release();
+                    }
+                    if (!validSet) {
+                        penalty();
+                        dealer.removeIllegalSetTokens(cards, id);
+                    }
                 } catch (InterruptedException ignored) {
                 }
             }
@@ -160,11 +172,10 @@ public class Player implements Runnable {
         // Try to stop thread in case of aiThread
         if (!human) try {
             aiThread.join();
-        } catch (
-                InterruptedException ignored) {
+            env.logger.info("ai thread " + Thread.currentThread().
+                    getName() + " terminated.");
+        } catch (InterruptedException ignored) {
         }
-        env.logger.info("thread " + Thread.currentThread().
-                getName() + " terminated.");
     }
 
     /**
@@ -176,7 +187,6 @@ public class Player implements Runnable {
         aiThread = new Thread(() -> {
             env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
             while (!terminate) {
-                // TODO: Check if it works well when cards are init (that it's not starting to act before)
                 // Getting a random slot to place a token
                 Random random = new Random();
                 int randomSlot = random.nextInt(env.config.tableSize);
@@ -197,7 +207,6 @@ public class Player implements Runnable {
      */
     public void terminate() {
         this.terminate = true;
-        env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         playerThread.interrupt();
     }
 
@@ -206,7 +215,6 @@ public class Player implements Runnable {
      *
      * @param slot - the slot corresponding to the key pressed.
      */
-// TODO: Consider later how to handle the case of the "else" - only for aiThread
     public void keyPressed(int slot) {
         // Handle the key pressed only when the player is not in freeze
         if (this.actions.size() < this.env.config.featureSize & isPlayerWokenUp) {
