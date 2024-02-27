@@ -2,13 +2,11 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
-import java.util.LinkedList;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.Collections;
 
 /**
  * This class manages the dealer's threads and data
@@ -44,7 +42,7 @@ public class Dealer implements Runnable {
     /**
      * The slots of cards that we need to remove from table in next remove action.
      */
-    private LinkedList<Integer> slotsToRemove = new LinkedList<>();
+    private LinkedBlockingQueue<Integer> slotsToRemove = new LinkedBlockingQueue<Integer>();
 
     /**
      * Define the required beat (time "jumps") of the thread.
@@ -54,7 +52,6 @@ public class Dealer implements Runnable {
     /**
      * Represents almost a second in millis, for waking up the dealer for timer countdown update.
      */
-    // TODO: Ask Bar why almost second and not exactly second?
     private final long ALMOST_SECOND_IN_MILLIS = 985;
 
     /**
@@ -130,22 +127,19 @@ public class Dealer implements Runnable {
      * Checks cards should be removed from the table and removes them.
      */
     private void removeCardsFromTable() {
-        if (!slotsToRemove.isEmpty()) {
-            // If there is a set found to remove, synchronize on the table and remove it.
-            try {
-                table.tableSemaphore.acquire();
-            } catch (InterruptedException ignored) {
+        synchronized (table) {
+            if (!slotsToRemove.isEmpty()) {
+                // If there is a set found to remove, synchronize on the table and remove it.
+                for (int slot : slotsToRemove) {
+                    // Remove the cards from the slots on the table.
+                    this.table.removeCard(slot);
+                }
+                // Clears the list when finished removing the cards
+                slotsToRemove.clear();
+            } else if (env.util.findSets(table.getAllCards(), MAX_SETS_FOR_RESHUFFLE).isEmpty()) {
+                // If there are no sets on table, synchronize on the table and remove all cards.
+                removeAllCardsFromTable();
             }
-            for (int slot : slotsToRemove) {
-                // Remove the cards from the slots on the table.
-                this.table.removeCard(slot);
-            }
-            table.tableSemaphore.release();
-            // Clears the list when finished removing the cards
-            slotsToRemove.clear();
-        } else if (env.util.findSets(table.getAllCards(), MAX_SETS_FOR_RESHUFFLE).isEmpty()) {
-            // If there are no sets on table, synchronize on the table and remove all cards.
-            removeAllCardsFromTable();
         }
     }
 
@@ -224,12 +218,9 @@ public class Dealer implements Runnable {
     private void removeAllCardsFromTable() {
         LinkedList<Integer> removedCardsList = new LinkedList<>();
         // Synchronize on the table while removing the cards.
-        try {
-            table.tableSemaphore.acquire();
+        synchronized (table) {
             removedCardsList = table.removeAllCardsFromTable();
-        } catch (InterruptedException ignored) {
         }
-        table.tableSemaphore.release();
         // Merging deck and removedCardsList.
         deck.addAll(removedCardsList);
         if (env.util.findSets(deck, MAX_SETS_FOR_RESHUFFLE).isEmpty()) {
@@ -278,7 +269,8 @@ public class Dealer implements Runnable {
     public void replaceCards(int[] cards) {
         // We need to remove the cards, so it updates the slotsToRemove list to the relevant slots.
         for (int card : cards) {
-            this.slotsToRemove.add(table.cardToSlot[card]);
+            int slot = table.cardToSlot[card];
+            this.slotsToRemove.add(slot);
         }
         removeCardsFromTable();
         placeCardsOnTable();
@@ -289,35 +281,35 @@ public class Dealer implements Runnable {
      *
      * @param cards - the given cards where illegal tokens were placed.
      */
-    public void removeIllegalSetTokens(int[] cards) {
-            // If the set still exists on the table - for avoiding check sets found at same time.
-            if (!(cards.length == 0)) {
-                for (int card : cards) {
-                    if (table.cardToSlot[card] != null) {
-                        this.table.removeTokenByCard(card);
-                    }
+    public void removeIllegalSetTokens(int[] cards, int player) {
+        // If the set still exists on the table - for avoiding check sets found at same time.
+        if (!(cards.length == 0)) {
+            for (int card : cards) {
+                if (table.cardToSlot[card] != null) {
+                    this.table.removeToken(player, table.cardToSlot[card]);
                 }
             }
         }
+    }
 
-        /**
-         * Init and run all players threads.
-         */
-        private void runPlayersThreads () {
-            // The true flag, indicate it is fair Semaphore
-            Semaphore semaphore = new Semaphore(1, true);
-            for (int playerNumber = 0; playerNumber < players.length; playerNumber++) {
-                // We initialize the semaphore here because we want to make sure it is the same one for all players
-                players[playerNumber].setSemaphore(semaphore);
-                Thread playerThread = new Thread(players[playerNumber], env.config.playerNames[playerNumber]);
-                playerThread.start();
-            }
-        }
-
-        /**
-         * Reshuffles randomly the deck.
-         */
-        private void reshuffleDeck () {
-            Collections.shuffle(deck);
+    /**
+     * Init and run all players threads.
+     */
+    private void runPlayersThreads() {
+        // The true flag, indicate it is fair Semaphore
+        Semaphore semaphore = new Semaphore(1, true);
+        for (int playerNumber = 0; playerNumber < players.length; playerNumber++) {
+            // We initialize the semaphore here because we want to make sure it is the same one for all players
+            players[playerNumber].setSemaphore(semaphore);
+            Thread playerThread = new Thread(players[playerNumber], env.config.playerNames[playerNumber]);
+            playerThread.start();
         }
     }
+
+    /**
+     * Reshuffles randomly the deck.
+     */
+    private void reshuffleDeck() {
+        Collections.shuffle(deck);
+    }
+}

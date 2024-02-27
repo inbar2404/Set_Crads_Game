@@ -185,7 +185,7 @@ public class Table {
      *
      * @param player - the player the token belongs to.
      * @param slot   - the slot from which to remove the token.
-     * @return - true if a token was successfully removed.
+     * @return - true ifF a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
         // Remove the token from the player-to-tokens mapping, and from the ui
@@ -195,26 +195,6 @@ public class Table {
             return true;
         }
         return false;
-    }
-
-    /**
-     * Remove the tokens related to the card.
-     *
-     * @param card - The given card we would like to remove the connected tokens.
-     */
-    public void removeTokenByCard(int card){
-        int slot = cardToSlot[card];
-        // Iterate over the players's slots
-        for (int playerId : playersTokensMap.keySet()) {
-            LinkedList<Integer> slotList = playersTokensMap.get(playerId);
-            // Check if the slot we are looking for exists in the current list
-            if (slotList != null && slotList.contains(slot)) {
-                // If so, try to remove the relevant tokens
-                if (canRemoveToken(playerId, slot)){
-                    removeToken(playerId, slot);
-                }
-            }
-        }
     }
 
     /**
