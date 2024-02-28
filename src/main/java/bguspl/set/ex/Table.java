@@ -34,16 +34,7 @@ public class Table {
      */
     protected HashMap<Integer, LinkedList<Integer>> playersTokensMap;
 
-    /**
-     * The number of threads aloud to work in same time for the semaphore.
-     */
-    private final int SEMAPHORE_PERMITS;
 
-    /**
-     * Semaphore on the table, for blocking player threads to use him when performing dealer's actions.
-     * It's protected because we need the dealer and player to use it.
-     */
-    protected Semaphore tableSemaphore;
 
     /**
      * Constructor for testing.
@@ -61,8 +52,6 @@ public class Table {
         for (int playerID = 0; playerID < env.config.players; playerID++) {
             this.playersTokensMap.put(playerID, new LinkedList<Integer>());
         }
-        this.SEMAPHORE_PERMITS = 1;
-        this.tableSemaphore = new Semaphore(this.SEMAPHORE_PERMITS, true);
     }
 
     /**
@@ -185,7 +174,7 @@ public class Table {
      *
      * @param player - the player the token belongs to.
      * @param slot   - the slot from which to remove the token.
-     * @return - true iff a token was successfully removed.
+     * @return - true ifF a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
         // Remove the token from the player-to-tokens mapping, and from the ui
@@ -256,7 +245,6 @@ public class Table {
      * @return - A list of the removed cards.
      */
     public LinkedList<Integer> removeAllCardsFromTable() {
-        // TODO: remove randomly from slots
         LinkedList<Integer> removedCardsList = new LinkedList<>();
 
         for (int slot = 0; slot < slotToCard.length; slot++) {

@@ -2,13 +2,11 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
-import java.util.LinkedList;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.Collections;
 
 /**
  * This class manages the dealer's threads and data
@@ -44,12 +42,22 @@ public class Dealer implements Runnable {
     /**
      * The slots of cards that we need to remove from table in next remove action.
      */
-    private LinkedList<Integer> slotsToRemove = new LinkedList<>();
+    private LinkedBlockingQueue<Integer> slotsToRemove = new LinkedBlockingQueue<Integer>();
+
+    /**
+     * Define the required beat (time "jumps") of the thread.
+     */
+    private long currentBeat;
 
     /**
      * Represents almost a second in millis, for waking up the dealer for timer countdown update.
      */
     private final long ALMOST_SECOND_IN_MILLIS = 985;
+
+    /**
+     * Represent the "jumps" (beat) we want to have when it is in the warn zone (last 5s).
+     */
+    private final long WARN_BEAT_TIME = 10;
 
     /**
      * Used for dealer to know when game ends or no sets on table, on function findSets.
@@ -60,6 +68,7 @@ public class Dealer implements Runnable {
         this.env = env;
         this.table = table;
         this.players = players;
+        this.currentBeat = ALMOST_SECOND_IN_MILLIS;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
     }
 
@@ -99,13 +108,8 @@ public class Dealer implements Runnable {
     public void terminate() {
         // Iterating reverse order in order to terminate all threads gracefully
         for (int playerNumber = players.length - 1; playerNumber >= 0; playerNumber--) {
+            env.logger.info("playerThread " + players[playerNumber].playerThread.getName() + " terminated.");
             players[playerNumber].terminate();
-            while (players[playerNumber].playerThread.isAlive()) {
-                try {
-                    players[playerNumber].playerThread.join();
-                } catch (InterruptedException ignored) {
-                }
-            }
         }
         this.terminate = true;
     }
@@ -123,23 +127,19 @@ public class Dealer implements Runnable {
      * Checks cards should be removed from the table and removes them.
      */
     private void removeCardsFromTable() {
-        if (!slotsToRemove.isEmpty()) {
-            // If there is a set found to remove, synchronize on the table and remove it.
-            try {
-                table.tableSemaphore.acquire();
-            } catch (InterruptedException ignored) {
+        synchronized (table) {
+            if (!slotsToRemove.isEmpty()) {
+                // If there is a set found to remove, synchronize on the table and remove it.
+                for (int slot : slotsToRemove) {
+                    // Remove the cards from the slots on the table.
+                    this.table.removeCard(slot);
+                }
+                // Clears the list when finished removing the cards
+                slotsToRemove.clear();
+            } else if (env.util.findSets(table.getAllCards(), MAX_SETS_FOR_RESHUFFLE).isEmpty()) {
+                // If there are no sets on table, synchronize on the table and remove all cards.
+                removeAllCardsFromTable();
             }
-            // TODO: remove randomly from slots - maybe add a function removeCards in Table class and call it
-            for (int slot : slotsToRemove) {
-                // Remove the cards from the slots on the table.
-                this.table.removeCard(slot);
-            }
-            table.tableSemaphore.release();
-            // Clears the list when finished removing the cards
-            slotsToRemove.clear();
-        } else if (env.util.findSets(table.getAllCards(), MAX_SETS_FOR_RESHUFFLE).isEmpty()) {
-            // If there are no sets on table, synchronize on the table and remove all cards.
-            removeAllCardsFromTable();
         }
     }
 
@@ -158,17 +158,20 @@ public class Dealer implements Runnable {
         }
         if (!cardsToPlace.isEmpty()) {
             // Synchronize on the table object while placing new cards on table
-            try {
-                table.tableSemaphore.acquire();
+            //try {
+            synchronized (table) {
+                //table.tableSemaphore.acquire();
                 // Call the table function to update the data and ui.
                 table.placeCardsOnTable(cardsToPlace);
-            } catch (InterruptedException ignored) {
+                //} catch (InterruptedException ignored) {
+                //}
             }
-
-            table.tableSemaphore.release();
+            //table.tableSemaphore.release();
             // Display hints if needed.
             if (env.config.hints) {
-                table.hints();
+                synchronized (table) {
+                    table.hints();
+                }
             }
             updateTimerDisplay(true);
         }
@@ -181,7 +184,7 @@ public class Dealer implements Runnable {
         // The thread waits until we need to update countdown , or to check set. We must synchronize when waiting
         synchronized (this) {
             try {
-                this.wait(ALMOST_SECOND_IN_MILLIS);
+                this.wait(currentBeat);
             } catch (InterruptedException ignored) {
             }
         }
@@ -191,27 +194,38 @@ public class Dealer implements Runnable {
      * Reset and/or update the countdown and the countdown display.
      */
     private void updateTimerDisplay(boolean reset) {
-        boolean shouldWarn = false;
-        long timeLeft = env.config.turnTimeoutMillis;
-        if (timeLeft > 0) {
+        if(env.config.turnTimeoutMillis>0) {
+            boolean shouldWarn = false;
+            long timeLeft = env.config.turnTimeoutMillis;
             if (reset) {
                 reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
             } else {
                 timeLeft = reshuffleTime - System.currentTimeMillis();
                 shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
             }
+
+            if (shouldWarn) {
+                currentBeat = WARN_BEAT_TIME;
+            } else {
+                currentBeat = ALMOST_SECOND_IN_MILLIS;
+            }
+
+            if (timeLeft < 0) {
+                timeLeft = 0;
+            }
             env.ui.setCountdown(timeLeft, shouldWarn);
-        } else if (timeLeft == 0) {
+        }
+        else if(env.config.turnTimeoutMillis == 0)
+        {
             if (reset) {
                 // If time reset show 0 and restart the clock to current dates
-                env.ui.setElapsed(timeLeft);
+                env.ui.setElapsed(env.config.turnTimeoutMillis);
                 reshuffleTime = System.currentTimeMillis();
             } else {
                 // The time elapsed from last reset
                 env.ui.setElapsed((System.currentTimeMillis() - reshuffleTime));
             }
         }
-        // If time left<0 display nothing
     }
 
     /**
@@ -220,12 +234,9 @@ public class Dealer implements Runnable {
     private void removeAllCardsFromTable() {
         LinkedList<Integer> removedCardsList = new LinkedList<>();
         // Synchronize on the table while removing the cards.
-        try {
-            table.tableSemaphore.acquire();
+        synchronized (table) {
             removedCardsList = table.removeAllCardsFromTable();
-        } catch (InterruptedException ignored) {
         }
-        table.tableSemaphore.release();
         // Merging deck and removedCardsList.
         deck.addAll(removedCardsList);
         if (env.util.findSets(deck, MAX_SETS_FOR_RESHUFFLE).isEmpty()) {
@@ -254,41 +265,48 @@ public class Dealer implements Runnable {
         // Convert the winner List<Integer> to int array
         int[] finalWinners = winners.stream().mapToInt(Integer::intValue).toArray();
         env.ui.announceWinner(finalWinners);
+
     }
 
     /**
      * Check if the chosen cards of the given player create a valid set.
      *
-     * @param id - the player id number.
+     * @param cards - the player cards of the player we want to check if he has a set.
      * @return - rather the set is valid or not.
      */
-    public void isSetValid(int id) {
-        int[] cards = table.getPlayerCards(id);
-        boolean isSetValid = env.util.testSet(cards);
-        // TODO : Inbar try to implement better
-        if (isSetValid) {
-            // If the set is valid - we need to remove the cards, so it updates the slotsToRemove list to the relevant slots.
+    public boolean isSetValid(int[] cards) {
+        return env.util.testSet(cards);
+    }
+
+    /**
+     * Removing the given cards and place other instead.
+     *
+     * @param cards - the given card we want to remove and bring others instead.
+     */
+    public void replaceCards(int[] cards) {
+        // We need to remove the cards, so it updates the slotsToRemove list to the relevant slots.
+        for (int card : cards) {
+            int slot = table.cardToSlot[card];
+            this.slotsToRemove.add(slot);
+        }
+        removeCardsFromTable();
+        placeCardsOnTable();
+    }
+
+    /**
+     * Remove token of illegal set that were placed.
+     *
+     * @param cards - the given cards where illegal tokens were placed.
+     */
+    public void removeIllegalSetTokens(int[] cards, int player) {
+        // If the set still exists on the table - for avoiding check sets found at same time.
+        if (!(cards.length == 0)) {
             for (int card : cards) {
-                this.slotsToRemove.add(table.cardToSlot[card]);
-            }
-            // Remove the set cards and give point to the player
-            removeCardsFromTable();
-            players[id].point();
-            // Place new cards
-            placeCardsOnTable();
-        } else {
-            // If the set still exists on the table - for avoiding check sets found at same time.
-            if (!(cards.length == 0)) {
-                players[id].penalty();
-                for (int card : cards) {
-                    // Remove the illegal set tokens
-                    if ((table.cardToSlot[card] != null) && table.canRemoveToken(id, table.cardToSlot[card])) {
-                        this.table.removeToken(id, table.cardToSlot[card]);
-                    }
+                if (table.cardToSlot[card] != null) {
+                    this.table.removeToken(player, table.cardToSlot[card]);
                 }
             }
         }
-
     }
 
     /**
