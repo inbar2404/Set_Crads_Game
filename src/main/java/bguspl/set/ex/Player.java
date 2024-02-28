@@ -129,8 +129,9 @@ public class Player implements Runnable {
             } catch (InterruptedException e) {
             }
             // Execute the action - rather is it placing or removing
-            try {
-                table.tableSemaphore.acquire();
+            //try {
+            //table.tableSemaphore.acquire();
+            synchronized (table) {
                 if (table.canPlaceToken(id, action)) {
                     table.placeToken(id, action);
                 } else {
@@ -139,9 +140,10 @@ public class Player implements Runnable {
                         table.removeToken(id, action);
                     }
                 }
-            } catch (InterruptedException ignored) {
+                //} catch (InterruptedException ignored) {
             }
-            table.tableSemaphore.release();
+        //}
+            //table.tableSemaphore.release();
             // In case of 3 tokens that are placed on deck - we will check if we have a set
             boolean hasSet = table.getNumberOfTokensOfPlayer(id) == env.config.featureSize;
             if (hasSet) {
@@ -151,13 +153,16 @@ public class Player implements Runnable {
                     synchronized (dealer) {
                         dealer.notifyAll();
                     }
+
                     int[] cards = table.getPlayerCards(id);
                     boolean validSet = dealer.isSetValid(cards);
                     synchronized (table) {
-                    if (validSet && table.getNumberOfTokensOfPlayer(id) == env.config.featureSize) {
-                            point();
+                        if (validSet && table.getNumberOfTokensOfPlayer(id) == env.config.featureSize) {
                             dealer.replaceCards(cards);
-                    }}
+                        }}
+                        if(validSet){
+                            point();
+                        }
                     if(table.getNumberOfTokensOfPlayer(id) != env.config.featureSize){
                         playersWaitingForSetCheckSemaphore.release();
                     }
@@ -167,6 +172,7 @@ public class Player implements Runnable {
                     }
                 } catch (InterruptedException ignored) {
                 }
+
             }
         }
         // Try to stop thread in case of aiThread
@@ -230,9 +236,9 @@ public class Player implements Runnable {
      */
     public void point() {
         // Release the lock on the dealer
+        env.ui.setScore(id, ++score);
         playersWaitingForSetCheckSemaphore.release();
         freezePlayer(this.env.config.pointFreezeMillis);
-        env.ui.setScore(id, ++score);
     }
 
     /**

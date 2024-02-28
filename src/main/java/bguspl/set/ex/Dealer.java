@@ -158,17 +158,20 @@ public class Dealer implements Runnable {
         }
         if (!cardsToPlace.isEmpty()) {
             // Synchronize on the table object while placing new cards on table
-            try {
-                table.tableSemaphore.acquire();
+            //try {
+            synchronized (table) {
+                //table.tableSemaphore.acquire();
                 // Call the table function to update the data and ui.
                 table.placeCardsOnTable(cardsToPlace);
-            } catch (InterruptedException ignored) {
+                //} catch (InterruptedException ignored) {
+                //}
             }
-
-            table.tableSemaphore.release();
+            //table.tableSemaphore.release();
             // Display hints if needed.
             if (env.config.hints) {
-                table.hints();
+                synchronized (table) {
+                    table.hints();
+                }
             }
             updateTimerDisplay(true);
         }
@@ -191,25 +194,38 @@ public class Dealer implements Runnable {
      * Reset and/or update the countdown and the countdown display.
      */
     private void updateTimerDisplay(boolean reset) {
-        boolean shouldWarn = false;
-        long timeLeft = env.config.turnTimeoutMillis;
-        if (reset) {
-            reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
-        } else {
-            timeLeft = reshuffleTime - System.currentTimeMillis();
-            shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
-        }
+        if(env.config.turnTimeoutMillis>0) {
+            boolean shouldWarn = false;
+            long timeLeft = env.config.turnTimeoutMillis;
+            if (reset) {
+                reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+            } else {
+                timeLeft = reshuffleTime - System.currentTimeMillis();
+                shouldWarn = timeLeft < env.config.turnTimeoutWarningMillis;
+            }
 
-        if (shouldWarn) {
-            currentBeat = WARN_BEAT_TIME;
-        } else {
-            currentBeat = ALMOST_SECOND_IN_MILLIS;
-        }
+            if (shouldWarn) {
+                currentBeat = WARN_BEAT_TIME;
+            } else {
+                currentBeat = ALMOST_SECOND_IN_MILLIS;
+            }
 
-        if (timeLeft < 0) {
-            timeLeft = 0;
+            if (timeLeft < 0) {
+                timeLeft = 0;
+            }
+            env.ui.setCountdown(timeLeft, shouldWarn);
         }
-        env.ui.setCountdown(timeLeft, shouldWarn);
+        else if(env.config.turnTimeoutMillis == 0)
+        {
+            if (reset) {
+                // If time reset show 0 and restart the clock to current dates
+                env.ui.setElapsed(env.config.turnTimeoutMillis);
+                reshuffleTime = System.currentTimeMillis();
+            } else {
+                // The time elapsed from last reset
+                env.ui.setElapsed((System.currentTimeMillis() - reshuffleTime));
+            }
+        }
     }
 
     /**
@@ -249,6 +265,13 @@ public class Dealer implements Runnable {
         // Convert the winner List<Integer> to int array
         int[] finalWinners = winners.stream().mapToInt(Integer::intValue).toArray();
         env.ui.announceWinner(finalWinners);
+        int sum = 0;
+        for(Player player: players){
+            sum = sum +player.score();
+            System.out.println(player.score());
+        }
+        System.out.println(table.countCards());
+        System.out.println(sum*env.config.featureSize + table.countCards()+deck.size());
     }
 
     /**
