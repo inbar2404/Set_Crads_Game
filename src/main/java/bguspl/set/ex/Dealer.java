@@ -265,13 +265,7 @@ public class Dealer implements Runnable {
         // Convert the winner List<Integer> to int array
         int[] finalWinners = winners.stream().mapToInt(Integer::intValue).toArray();
         env.ui.announceWinner(finalWinners);
-        int sum = 0;
-        for(Player player: players){
-            sum = sum +player.score();
-            System.out.println(player.score());
-        }
-        System.out.println(table.countCards());
-        System.out.println(sum*env.config.featureSize + table.countCards()+deck.size());
+
     }
 
     /**
